@@ -1,6 +1,6 @@
 # nea-dynamics-lab
 
-The deliverable is index.html at the repo root (about 1590 lines, 129 KB, no external references). It is untracked and uncommitted; open it directly in a browser.
+The deliverable is index.html at the repo root.
 
 What it does
 
@@ -169,7 +169,7 @@ Do not claim to reproduce Geographos observations, JPL Horizons, impact probabil
 Deliver the complete working HTML, with understandable code and no placeholder charts, fabricated measurements, or simulated verification results.
 
 # Context
-**Yes—controlled perturbation comparisons are appropriate, but I would refine the design and substantially qualify my earlier assessment.** A factorial experiment can reveal how model components affect predictions. It cannot, by itself, establish that those predictions are physically accurate.
+**Controlled perturbation comparisons are appropriate, but I would refine the design and substantially qualify my earlier assessment.** A factorial experiment can reveal how model components affect predictions. It cannot, by itself, establish that those predictions are physically accurate.
 
 My recommendation is to combine **numerical verification, targeted perturbation comparisons, and independent validation**.
 
