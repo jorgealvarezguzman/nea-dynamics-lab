@@ -1,5 +1,46 @@
 # nea-dynamics-lab
 
+The deliverable is index.html at the repo root (about 1590 lines, 129 KB, no external references). It is untracked and uncommitted; open it directly in a browser.
+
+What it does
+
+- Integrates Sun, eight planets and the Moon with mutual point-mass gravity in a barycentric frame, plus eight asteroid test-particle copies in the same state vector, so all runs share one planetary trajectory and one step sequence.
+- Each copy carries position, velocity, quaternion, body angular velocity and 320 facet temperatures. Everything is propagated by an adaptive Dormand–Prince 5(4) with separate error scales per state class. Playback speed drops when the machine cannot keep up; tolerances never do.
+- Direct radiation and thermal recoil are separate facet sums with the exact formulas you specified, including the documented spin-averaged warm-up. No empirical Yarkovsky or YORP term is added on top.
+- The 2³ factorial (P, S, T) runs live. Heating stays on in every run, and the T-only combinations are labelled as diagnostic decompositions.
+- Views: top-down main scene with click-to-follow, pan and zoom; a close-up with temperature-coloured facets, spin axis, Sun direction and autoscaled force arrows with printed scales; a displacement view with a prominent power-of-ten magnification that never alters forces.
+- Live comparison table, signed factor effects and interactions, residual time series with least-squares trend versus periodic residual, CSV and JSON export, and a methods panel listing omitted physics. Observational validation is stated as not performed.
+
+Verification results, measured in the browser
+
+┌────────────────────────────────────┬──────┬────────┐
+│               Group                │ Rows │ Result │
+├────────────────────────────────────┼──────┼────────┤
+│ Sun-only Kepler orbit              │ 6    │ pass   │
+├────────────────────────────────────┼──────┼────────┤
+│ Ideal plates and thermal recoil    │ 8    │ pass   │
+├────────────────────────────────────┼──────┼────────┤
+│ Prescribed force and lever arm     │ 4    │ pass   │
+├────────────────────────────────────┼──────┼────────┤
+│ Torque-free rigid body             │ 4    │ pass   │
+├────────────────────────────────────┼──────┼────────┤
+│ Tolerance and step refinement      │ 9    │ pass   │
+├────────────────────────────────────┼──────┼────────┤
+│ Mesh refinement 80/320/1280 facets │ 6    │ pass   │
+└────────────────────────────────────┴──────┴────────┘
+
+Verdicts are computed at click time from measured errors against printed thresholds. Small angles use atan2 forms so nano-radian attitude and plane differences are not roundoff artefacts. Rows within
+three times the estimated numerical noise floor are marked unresolved.
+
+Things to know
+
+- Measured speed in headless Chrome and Node: roughly 20 to 50 seconds per asteroid orbthe target. The 1280-facet option is about four times slower.
+- Preset properties that are assumed rather than documented are listed on screen and in the JSON export. The synthetic encounter reaches about 0.02 AU from Earth near day 149, and the on-screen note
+  says the geometry was designed.
+- Permanently shadowed facets have no equilibrium in a conduction-free model and cool slowly; the warm-up panel says so.
+- I did not commit. The README still holds the original brief; I left it untouched since it.
+
+# Prompt
 Build an interactive **Near-Earth Asteroid Dynamics Lab** as one self-contained HTML file, with embedded CSS and JavaScript, no external libraries, assets, or network requests. Make it look like an elegant museum exhibit: a dark starfield, restrained colours, readable typography, thin fading trails, and a softly glowing Sun. Start running immediately.
 
 The purpose is to investigate how gravity, direct solar radiation pressure, and thermal recoil change an asteroid’s orbit and rotation. Clearly distinguish a numerical demonstration, a comparison between models, and validation against observations.
