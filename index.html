@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Near-Earth Asteroid Dynamics Lab — synthetic demonstration</title>
+<style>
+  :root { color-scheme: dark; --bg: #070a12; --panel: #0e1320; --panel2: #121828; --line: #232a3a; --ink: #e8e6df; --ink2: #b8b6ab; --muted: #7f7d77; --gold: #d8b36a; --warn: #fab219; --bad: #e66767; --good: #0ca30c; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; padding: 16px 22px 8px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 20px; font-weight: 500; letter-spacing: 0.04em; margin: 0; color: var(--gold); }
+  header .sub { color: var(--ink2); }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border: 1px solid var(--gold); border-radius: 3px; color: var(--gold); }
+  .hud { margin-left: auto; text-align: right; color: var(--ink2); font-variant-numeric: tabular-nums; font-size: 13px; }
+  #errBanner { display: none; background: #4a1c1c; color: #ffd4d4; padding: 8px 22px; font-family: ui-monospace, monospace; }
+  main { padding: 12px 22px 40px; display: grid; gap: 14px; }
+  .scene { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 12px; }
+  .scene .side { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; }
+  canvas { display: block; width: 100%; height: 100%; border-radius: 6px; }
+  .vp { position: relative; background: #0a0d16; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  #mainCanvas { height: 640px; cursor: grab; }
+  #closeCanvas, #dispCanvas { height: 314px; }
+  .vp .cap { position: absolute; left: 10px; top: 8px; font-size: 11px; color: var(--muted); pointer-events: none; background: rgba(10,13,22,.7); padding: 2px 6px; border-radius: 4px; }
+  .vp .ctl { position: absolute; right: 8px; top: 6px; background: rgba(10,13,22,.75); padding: 2px 6px; border-radius: 4px; display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--ink2); }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  .toolbar .grp { display: flex; align-items: center; gap: 8px; }
+  button { background: var(--panel2); color: var(--ink); border: 1px solid #2c3446; border-radius: 4px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--gold); } button:disabled { opacity: .5; cursor: default; }
+  select, input[type=number] { background: var(--panel2); color: var(--ink); border: 1px solid #2c3446; border-radius: 4px; padding: 4px 6px; font: inherit; font-variant-numeric: tabular-nums; }
+  input[type=range] { accent-color: var(--gold); }
+  label.small, .small { font-size: 12px; color: var(--ink2); }
+  .warn { color: var(--warn); }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 4px; border: 1px solid var(--c); border-radius: 12px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .chip input { accent-color: var(--c); margin: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+  .panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  .panel h4 { margin: 12px 0 4px; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 1100px) { .scene, .grid2 { grid-template-columns: 1fr; } #mainCanvas { height: 480px; } }
+  .form { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 14px; }
+  .form label { display: grid; gap: 2px; font-size: 12px; color: var(--ink2); }
+  .form input, .form select { width: 100%; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+  .kv span:first-child { color: var(--ink2); } .kv span:last-child { font-variant-numeric: tabular-nums; text-align: right; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  th, td { padding: 5px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink2); font-weight: 500; font-size: 11.5px; letter-spacing: 0.03em; }
+  td.num { text-align: right; white-space: nowrap; } td.fixed { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .on { color: var(--good); } .off { color: var(--muted); } .unres { color: var(--muted); font-style: italic; } .marg { color: var(--warn); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .mini { margin: 6px 0 10px; }
+  .bad { color: var(--bad); }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge.pass { background: #0e2a12; color: #4fd36a; border: 1px solid #1f5a2a; } .badge.fail { background: #3a1414; color: #ff9b9b; border: 1px solid #7a2a2a; } .badge.unresolved { background: #2a2410; color: #f2c66a; border: 1px solid #6a5a20; }
+  .muted { color: var(--muted); }
+  .methods p, .methods li { font-size: 13px; color: var(--ink2); }
+  .methods code, .eq { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--ink); }
+  .eq { display: block; padding: 6px 12px; margin: 6px 0; background: var(--panel2); border-left: 2px solid var(--gold); border-radius: 3px; white-space: pre-wrap; }
+  details summary { cursor: pointer; color: var(--gold); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+  .status-line { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--ink2); }
+  footer { padding: 10px 22px 30px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Near-Earth Asteroid Dynamics Lab</h1>
+  <span class="tag">Synthetic demonstration — not an ephemeris</span>
+  <span class="sub">Gravity · direct solar radiation · thermal recoil — a 2³ factorial comparison of one asteroid's orbit and rotation</span>
+  <div class="hud"><div id="timeHud">t = 0</div><div id="stepHud"></div></div>
+</header>
+<div id="errBanner"></div>
+<main>
+  <section class="scene">
+    <div class="vp"><canvas id="mainCanvas"></canvas>
+      <div class="ctl" style="top:auto;bottom:6px"><label class="small">follow <select id="follow"></select></label><button id="resetViewBtn" title="Frame the inner Solar System">frame inner system</button></div>
+      <div class="cap">Top-down (ecliptic north) projection of the 3-D barycentric integration · click a body to follow · drag to pan · scroll to zoom</div>
+    </div>
+    <div class="side">
+      <div class="vp"><canvas id="closeCanvas"></canvas>
+        <div class="ctl"><label class="small">run <select id="closeRun"></select></label><label class="small">view <select id="closeView"><option value="top">ecliptic north</option><option value="sun">from the Sun</option><option value="pole">along spin axis</option></select></label></div>
+      </div>
+      <div class="vp"><canvas id="dispCanvas"></canvas>
+        <div class="ctl" style="top:auto;bottom:6px"><label class="small">magnification <input id="mag" type="range" min="0" max="12" step="1" value="7" style="width:110px"> <b id="magLabel" style="color:var(--gold)">×10^7</b></label><label class="small"><input id="magAuto" type="checkbox" checked> auto</label></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="grp"><button id="playBtn">❚❚ Pause</button><button id="stepBtn" title="Advance one adaptive integrator step">Step</button><button id="resetBtn" title="Restart all eight runs from matched initial conditions">Reset</button></div>
+    <div class="grp"><label class="small">speed <input id="speed" type="range" min="4" max="7.3" step="0.01" value="6" style="width:150px"></label><span class="small" id="speedLabel"></span><span class="small" id="achievedLabel"></span></div>
+    <div class="grp"><label class="small">preset <select id="preset"></select></label></div>
+    <div class="grp"><span class="small">visible runs (P S T):</span><span id="runChips" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+  </section>
+  <div class="status-line"><span id="presetDesc"></span><span id="assumed" class="muted"></span><span id="encounterNote" class="warn" style="display:none">Synthetic encounter geometry: the approach was constructed by design and does not correspond to any real object or date.</span></div>
+
+  <section class="grid2">
+    <div class="panel">
+      <h3>Asteroid parameters — any change restarts all eight runs from matched initial conditions</h3>
+      <div class="form">
+        <label><span>long axis (m)</span><input id="p_size" type="number" step="any" min="1"></label>
+        <label><span>bulk density (kg/m³)</span><input id="p_density" type="number" step="any" min="100"></label>
+        <label><span>spin period (h)</span><input id="p_spin" type="number" step="any" min="0.2"></label>
+        <label><span>pole ecliptic longitude (°)</span><input id="p_poleLon" type="number" step="any"></label>
+        <label><span>pole ecliptic latitude (°)</span><input id="p_poleLat" type="number" step="any" min="-90" max="90"></label>
+        <label><span>absorptivity α</span><input id="p_alpha" type="number" step="0.01" min="0" max="1"></label>
+        <label><span>diffuse reflectance ρ<sub>d</sub></span><input id="p_rhoD" type="number" step="0.01" min="0" max="1"></label>
+        <label><span>specular reflectance ρ<sub>s</sub> = 1 − α − ρ<sub>d</sub></span><span id="p_rhoS" style="padding:4px 0"></span></label>
+        <label><span>emissivity ε</span><input id="p_eps" type="number" step="0.01" min="0.01" max="1"></label>
+        <label><span>surface heat capacity C<sub>A</sub> (J m⁻² K⁻¹)</span><input id="p_CA" type="number" step="any" min="1000"></label>
+        <label><span>mesh resolution</span><select id="meshLevel"><option value="1">80 facets (fast, coarse)</option><option value="2" selected>320 facets</option><option value="3">1280 facets (slow)</option></select></label>
+        <label><span>integration accuracy</span><select id="accuracy"><option value="fast">Fast (tolerances ×10)</option><option value="standard" selected>Standard</option><option value="precise">Precise (tolerances ×0.1)</option></select></label>
+      </div>
+      <p style="margin:10px 0 0"><button id="applyBtn">Apply &amp; restart comparison</button> <span class="small">Shape axis ratios and undulations are fixed per preset; the size scales the whole shape. Spin is about the maximum-inertia axis (assumed).</span></p>
+      <div id="shapeInfo" class="small" style="margin-top:10px;line-height:1.55"></div>
+    </div>
+    <div class="panel">
+      <h3>Numerical &amp; conservation diagnostics</h3>
+      <div id="diag"></div>
+      <p class="small muted" style="margin:8px 0 0">The massive-body system is conservative, so its energy and momenta should be constant: drift there is integration error. The asteroid's heliocentric orbital energy is <em>not</em> conserved (planetary forcing, radiation) — its change is physics, not drift. The noise floor is a crude estimate (accumulated local-error estimates plus a round-off random walk); the tolerance-refinement check below is the direct test.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Live comparison — all differences relative to run 111 (the most complete implemented model, not ground truth)</h3>
+    <table><thead><tr><th>run (P S T)</th><th>P: Earth+Moon gravity</th><th>S: direct radiation</th><th>T: thermal recoil</th><th>elapsed</th><th>|Δr|</th><th>|Δv|</th><th>Δa</th><th>orbital-plane angle</th><th>Δ spin rate</th><th>relative attitude angle</th><th>resolution</th></tr></thead><tbody id="cmpBody"></tbody></table>
+    <p class="small muted" style="margin:8px 0 0">Attitude is compared as the rotation angle between orientations, 2·acos|q₁·q₂| (q and −q are the same attitude). Runs 0·1 and ·01 are diagnostic experiments: heating stays on in every run, so "thermal recoil without direct radiation pressure" isolates a mathematical term, not a physically realisable body. Rows marked "unresolved" have differences within 3× the estimated numerical noise floor.</p>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h3>Factor effects and interactions</h3>
+      <label class="small">signed output <select id="obsSel"></select></label>
+      <div id="interactions" style="margin-top:8px"></div>
+      <p id="interNote" class="small muted"></p>
+    </div>
+    <div class="panel">
+      <h3>Residual time series</h3>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px"><label class="small">series <select id="plotObs"></select></label><label class="small">trend fit <select id="plotFit"><option value="1" selected>linear</option><option value="2">quadratic</option><option value="0">none</option></select></label></div>
+      <div class="vp" style="height:300px"><canvas id="plotCanvas"></canvas></div>
+      <p class="small muted" style="margin:6px 0 0">Secular trend = least-squares polynomial over the plotted interval; the residual about the fit is the periodic (orbital/rotational) part. A trend fitted over less than a few orbits is not a reliable long-term rate. Hover for values.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Numerical verification</h3>
+    <p class="small" style="margin:0 0 8px"><button id="verifyBtn">Run verification</button> <span class="muted">Executes six groups of checks with the same integrator, facet-force and torque code used by the simulation. Verdicts are computed from measured errors against the stated thresholds; nothing is pre-filled. Observational validation: <b>not performed</b> — no independent reference dataset (observations, or a fitted ephemeris such as JPL Horizons) has been supplied or compared, and no such agreement is claimed.</span></p>
+    <div id="verifyOut"><p class="muted small">Not yet run.</p></div>
+  </section>
+
+  <section class="panel methods">
+    <details open><summary>Methods, approximations and scope</summary>
+      <h4>What this is</h4>
+      <p>A <b>numerical demonstration</b> and a <b>comparison between model variants</b>. It is not a fitted orbit, not an ephemeris, and it makes no claim to reproduce observations of (1620) Geographos or any other object, to match JPL Horizons, or to estimate impact probabilities. The "Geographos-inspired" preset borrows approximate published values (a ≈ 1.2455 AU, e ≈ 0.3354, i ≈ 13.3°, P ≈ 5.223 h, elongated ~5 × 2 km shape, pole near ecliptic λ ≈ 55°, β ≈ −46°); its shape, density, thermal and optical properties, epoch and phases are assumed. Planet starting states come from approximate J2000 mean elements, so the planetary configuration is a synthetic, deterministic snapshot.</p>
+      <h4>Frame and gravity</h4>
+      <p>All states are integrated in one inertial frame: the Solar-System barycentre with heliocentric-ecliptic J2000 axes (top-down views look down from ecliptic north). Sun, eight planets and the Moon interact through mutual Newtonian point-mass gravity. The eight asteroid copies are test particles integrated in the same state vector, so they share exactly the same planetary trajectories and step sequence. Because the frame is barycentric, third-body accelerations enter directly; switching <b>P</b> off removes the Earth and Moon terms from that asteroid's equation of motion (the Sun's reflex motion remains part of the shared trajectories). Heliocentric orbital elements use r − r<sub>☉</sub>, v − v<sub>☉</sub> and μ = G M<sub>☉</sub>.</p>
+      <h4>Asteroid dynamics</h4>
+      <span class="eq">r̈ = Σ<sub>b</sub> −G m<sub>b</sub> (r − r<sub>b</sub>)/|r − r<sub>b</sub>|³  +  (F<sub>direct</sub>·[S] + F<sub>thermal</sub>·[T]) / m
+q̇ = ½ q ⊗ (0, ω)          I ω̇ = τ<sub>direct</sub>·[S] + τ<sub>thermal</sub>·[T] − ω × (I ω)</span>
+      <p>q maps body to inertial axes; ω and τ are in the body (principal-axis) frame. Centre of mass and the inertia tensor are computed from the closed convex triangular mesh with uniform density (tetrahedron decomposition), and the mesh is re-expressed in its principal frame (I<sub>x</sub> ≤ I<sub>y</sub> ≤ I<sub>z</sub>); the spin axis is initially the maximum-inertia axis pointing along the chosen pole. Lever arms are facet centroids relative to the centre of mass.</p>
+      <h4>Direct solar radiation (per illuminated facet, cos θ = n·s &gt; 0)</h4>
+      <span class="eq">F = (I(r) A cos θ / c) [ −(α + ρ<sub>d</sub>) s − (2 ρ<sub>s</sub> cos θ + ⅔ ρ<sub>d</sub>) n ],   α + ρ<sub>d</sub> + ρ<sub>s</sub> = 1,   I(r) = L<sub>☉</sub> / (4π r²),   τ = Σ r<sub>c</sub> × F</span>
+      <p>Absorbed and diffusely reflected light transfer the incident momentum along −s; diffuse (Lambertian) reflection adds a ⅔ recoil along −n; specular reflection gives 2 cos θ along −n. For an ideal mirror at normal incidence this reduces to F = 2IA/c (checked in verification).</p>
+      <h4>Thermal recoil — explicitly simplified, finite-heat-capacity model</h4>
+      <span class="eq">C<sub>A</sub> dT<sub>f</sub>/dt = α I(r) max(0, n<sub>f</sub>·s) − ε σ T<sub>f</sub>⁴          F<sub>thermal</sub> = Σ<sub>f</sub> −(2 / 3c) ε σ A<sub>f</sub> T<sub>f</sub>⁴ n<sub>f</sub>,   τ<sub>thermal</sub> = Σ r<sub>c</sub> × F<sub>f</sub></span>
+      <p>Each facet is a single lumped layer with heat capacity per unit area C<sub>A</sub>; there is no subsurface conduction, no lateral conduction, no self-heating between facets and no shadowing (the shape is convex). Temperatures are state variables integrated with everything else and are initialised by the documented warm-up (see the parameter panel). Facet sums are the complete representation of Yarkovsky-type forces and YORP-type torques here: no additional empirical Yarkovsky acceleration or total YORP torque is added, and both reflected-light (S) and thermal-emission (T) torques contribute to rotational evolution. Heating remains active in every run; the T switch controls only the recoil force and torque, so runs with T on and S off are diagnostic decompositions rather than physical bodies.</p>
+      <h4>Numerics</h4>
+      <p>Dormand–Prince 5(4) with adaptive step, FSAL, and max-norm error control using separate absolute/relative scales for positions, velocities, quaternion components, angular velocity and temperatures; the quaternion is projected to unit norm after each accepted step and the pre-projection deviation is reported as a diagnostic. The step size is dominated by the rotation and by the terminator kink in the heating term; playback speed is reduced when the hardware cannot keep up, never the tolerance. Because all eight copies share one step sequence, truncation errors are strongly correlated between runs and their <em>differences</em> are more accurate than the absolute trajectories; the refinement check measures this directly.</p>
+      <h4>Factorial design</h4>
+      <p>Three binary factors — <b>P</b> Earth+Moon gravity, <b>S</b> direct radiation force and torque, <b>T</b> thermal recoil force and torque — in all 2³ = 8 combinations with identical initial position, velocity, orientation, angular velocity, shape, material properties and temperatures. Solar gravity and the other planets act identically in every run. Run 111 is the most complete model implemented and serves as the reference for differences; it is not ground truth. Effects are reported as signed differences (e.g. displacement along the reference orbit); a two-factor interaction I<sub>ST</sub> = y₁₁ − y₁₀ − y₀₁ + y₀₀ is nonzero when the joint response differs from the sum of the separate responses. Results are specific to the chosen asteroid, interval, observable and assumptions and are not converted into universal importance rankings.</p>
+      <h4>Omitted physics</h4>
+      <ul>
+        <li>Relativistic corrections (Schwarzschild, Lense–Thirring), non-spherical planetary gravity (J₂ etc.), tidal and gravity-gradient torques on the asteroid.</li>
+        <li>Subsurface conduction / thermal inertia, lateral conduction, surface roughness (beaming), self-heating and mutual shadowing, planetary eclipses of the asteroid.</li>
+        <li>Perturbations by massive asteroids, solar oblateness, solar wind and Poynting–Robertson drag, reflected and thermal radiation from planets, outgassing.</li>
+        <li>The asteroid's own gravity on the planets (test-particle assumption); non-principal-axis initial rotation.</li>
+      </ul>
+      <h4>Display conventions</h4>
+      <p>Body markers are drawn at a minimum pixel size (the enlargement factor is printed on the main view); force arrows are autoscaled with the scale printed on the close-up; the displacement view multiplies true displacements by the labelled magnification. No physical force is ever amplified.</p>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h3>Export</h3>
+    <button id="csvBtn">Download results CSV</button> <button id="jsonBtn">Download configuration JSON</button>
+    <span class="small muted">CSV: current comparison table, sampled time series and (if run) verification results. JSON: constants, body masses and initial states, preset, asteroid parameters, mesh properties, initial conditions, warm-up, tolerances, model equations in words, omitted physics and validation status.</span>
+  </section>
+</main>
+<footer>Physical constants: CODATA 2018 (G, c, σ), IAU 2012 au, IAU 2015 nominal solar luminosity 3.828 × 10²⁶ W; planet masses approximate published values. Everything runs locally in this page; no external libraries, assets or network requests.</footer>
+<script>
+// ======================================================================
+// NEAR-EARTH ASTEROID DYNAMICS LAB — physics core (pure JS, no DOM)
+// SI units throughout. Inertial frame: Solar-System barycentric, axes of
+// the heliocentric ecliptic J2000 frame (x: vernal equinox, z: ecliptic
+// north). Top-down views look down from +z.
+// ======================================================================
+'use strict';
+
+// ---------------------------------------------------------------- constants
+const CONST = {
+  G: 6.67430e-11,            // m^3 kg^-1 s^-2 (CODATA 2018)
+  c: 299792458,              // m/s (exact)
+  sigma: 5.670374419e-8,     // W m^-2 K^-4 (CODATA 2018)
+  AU: 1.495978707e11,        // m (IAU 2012)
+  L_sun: 3.828e26,           // W (IAU 2015 nominal solar luminosity)
+  DAY: 86400,
+  YEAR: 365.25 * 86400,
+};
+// Masses (kg): IAU / JPL DE-consistent approximate values.
+const BODY_DEFS = [
+  { name: 'Sun',     mass: 1.98892e30,  radius: 6.957e8,  color: '#ffd27a' },
+  { name: 'Mercury', mass: 3.3011e23,   radius: 2.4397e6, color: '#b8a89a' },
+  { name: 'Venus',   mass: 4.8675e24,   radius: 6.0518e6, color: '#e8cfa0' },
+  { name: 'Earth',   mass: 5.97237e24,  radius: 6.371e6,  color: '#6fa8dc' },
+  { name: 'Moon',    mass: 7.342e22,    radius: 1.7374e6, color: '#c9c9c9' },
+  { name: 'Mars',    mass: 6.4171e23,   radius: 3.3895e6, color: '#d98b6a' },
+  { name: 'Jupiter', mass: 1.8982e27,   radius: 6.9911e7, color: '#d9b48f' },
+  { name: 'Saturn',  mass: 5.6834e26,   radius: 5.8232e7, color: '#e6d3a3' },
+  { name: 'Uranus',  mass: 8.6810e25,   radius: 2.5362e7, color: '#9fd3d9' },
+  { name: 'Neptune', mass: 1.02413e26,  radius: 2.4622e7, color: '#7d9be6' },
+];
+const NB = BODY_DEFS.length;
+const IDX = { SUN: 0, MERCURY: 1, VENUS: 2, EARTH: 3, MOON: 4, MARS: 5, JUPITER: 6, SATURN: 7, URANUS: 8, NEPTUNE: 9 };
+
+// Approximate J2000 mean Keplerian elements (Standish, JPL "Keplerian
+// Elements for Approximate Positions of the Major Planets", Table 1).
+// a [AU], e, i [deg], L [deg] mean longitude, wbar [deg] longitude of
+// perihelion, Omega [deg]. Used only to build deterministic synthetic
+// initial conditions — this is NOT an ephemeris.
+const PLANET_ELEMENTS = {
+  Mercury: { a: 0.38709927, e: 0.20563593, i: 7.00497902,  L: 252.25032350, wbar: 77.45779628,  Om: 48.33076593 },
+  Venus:   { a: 0.72333566, e: 0.00677672, i: 3.39467605,  L: 181.97909950, wbar: 131.60246718, Om: 76.67984255 },
+  EMB:     { a: 1.00000261, e: 0.01671123, i: -0.00001531, L: 100.46457166, wbar: 102.93768193, Om: 0.0 },
+  Mars:    { a: 1.52371034, e: 0.09339410, i: 1.84969142,  L: -4.55343205,  wbar: -23.94362959, Om: 49.55953891 },
+  Jupiter: { a: 5.20288700, e: 0.04838624, i: 1.30439695,  L: 34.39644051,  wbar: 14.72847983,  Om: 100.47390909 },
+  Saturn:  { a: 9.53667594, e: 0.05386179, i: 2.48599187,  L: 49.95424423,  wbar: 92.59887831,  Om: 113.66242448 },
+  Uranus:  { a: 19.18916464, e: 0.04725744, i: 0.77263783, L: 313.23810451, wbar: 170.95427630, Om: 74.01692503 },
+  Neptune: { a: 30.06992276, e: 0.00859048, i: 1.77004347, L: -55.12002969, wbar: 44.96476227,  Om: 131.78422574 },
+};
+// Moon around the Earth–Moon barycentre: a, e, i to ecliptic; node, argument
+// of perigee and mean anomaly are ASSUMED deterministic phases.
+const MOON_ELEMENTS = { a: 3.84400e8, e: 0.0549, i: 5.145, Om: 125.08, w: 318.15, M: 135.27 };
+
+const DEG = Math.PI / 180;
+
+// ---------------------------------------------------------------- vectors
+function cross(a, b, out) { const x = a[1]*b[2]-a[2]*b[1], y = a[2]*b[0]-a[0]*b[2], z = a[0]*b[1]-a[1]*b[0]; out[0]=x; out[1]=y; out[2]=z; return out; }
+function dot(a, b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function norm(a) { return Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]); }
+function normalize(a) { const n = norm(a) || 1; return [a[0]/n, a[1]/n, a[2]/n]; }
+function sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function add(a, b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function scale(a, s) { return [a[0]*s, a[1]*s, a[2]*s]; }
+function angleBetween(a, b) { const c = cross(a, b, [0,0,0]); return Math.atan2(norm(c), dot(a, b)); } // atan2 form keeps precision for tiny angles
+
+// ---------------------------------------------------------------- quaternions
+// q = [w, x, y, z]; rotates BODY vectors into the INERTIAL frame.
+function qMul(a, b) {
+  return [a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3],
+          a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2],
+          a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1],
+          a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]];
+}
+function qNormalize(q) { const n = Math.hypot(q[0], q[1], q[2], q[3]) || 1; return [q[0]/n, q[1]/n, q[2]/n, q[3]/n]; }
+function qFromAxisAngle(axis, ang) { const u = normalize(axis), s = Math.sin(ang/2); return [Math.cos(ang/2), u[0]*s, u[1]*s, u[2]*s]; }
+// Rotation matrix (body->inertial) from quaternion, row-major 3x3.
+function qToMatrix(q, R) {
+  const w=q[0], x=q[1], y=q[2], z=q[3];
+  R[0]=1-2*(y*y+z*z); R[1]=2*(x*y-w*z);   R[2]=2*(x*z+w*y);
+  R[3]=2*(x*y+w*z);   R[4]=1-2*(x*x+z*z); R[5]=2*(y*z-w*x);
+  R[6]=2*(x*z-w*y);   R[7]=2*(y*z+w*x);   R[8]=1-2*(x*x+y*y);
+  return R;
+}
+function matVec(R, v, out) { const x=v[0],y=v[1],z=v[2]; out[0]=R[0]*x+R[1]*y+R[2]*z; out[1]=R[3]*x+R[4]*y+R[5]*z; out[2]=R[6]*x+R[7]*y+R[8]*z; return out; }
+function matTVec(R, v, out) { const x=v[0],y=v[1],z=v[2]; out[0]=R[0]*x+R[3]*y+R[6]*z; out[1]=R[1]*x+R[4]*y+R[7]*z; out[2]=R[2]*x+R[5]*y+R[8]*z; return out; }
+function qRotate(q, v) { const R = new Float64Array(9); qToMatrix(q, R); return matVec(R, v, [0,0,0]); }
+// Minimal rotation taking unit vector a onto unit vector b.
+function qFromTo(a, b) {
+  const d = dot(a, b);
+  if (d > 1 - 1e-12) return [1,0,0,0];
+  if (d < -1 + 1e-12) { // 180 deg about any perpendicular axis
+    let p = Math.abs(a[0]) < 0.9 ? [1,0,0] : [0,1,0]; const ax = normalize(cross(a, p, [0,0,0])); return [0, ax[0], ax[1], ax[2]];
+  }
+  const ax = cross(a, b, [0,0,0]); const q = [1 + d, ax[0], ax[1], ax[2]]; return qNormalize(q);
+}
+// Angle between two orientations, accounting for q ~ -q.
+function attitudeAngle(q1, q2) {
+  // relative rotation q1* ⊗ q2; angle = 2 atan2(|vector part|, |scalar part|) (precise for tiny angles; sign of q irrelevant)
+  const r = qMul([q1[0], -q1[1], -q1[2], -q1[3]], q2);
+  return 2 * Math.atan2(Math.hypot(r[1], r[2], r[3]), Math.abs(r[0]));
+}
+
+// ---------------------------------------------------------------- Kepler tools
+function solveKepler(M, e) {
+  M = ((M % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  let E = e < 0.8 ? M : Math.PI;
+  for (let k = 0; k < 60; k++) { const f = E - e*Math.sin(E) - M; const d = f / (1 - e*Math.cos(E)); E -= d; if (Math.abs(d) < 1e-15) break; }
+  return E;
+}
+// Elements (a m, e, i rad, Om rad, w rad, M rad) -> position, velocity in the frame of reference of the central body.
+function elementsToState(el, mu) {
+  const { a, e, i, Om, w, M } = el;
+  const E = solveKepler(M, e);
+  const cosE = Math.cos(E), sinE = Math.sin(E);
+  const r = a * (1 - e*cosE);
+  const xp = a * (cosE - e), yp = a * Math.sqrt(1 - e*e) * sinE;
+  const f = Math.sqrt(mu * a) / r;
+  const vxp = -f * sinE, vyp = f * Math.sqrt(1 - e*e) * cosE;
+  const cO = Math.cos(Om), sO = Math.sin(Om), cw = Math.cos(w), sw = Math.sin(w), ci = Math.cos(i), si = Math.sin(i);
+  const R11 = cO*cw - sO*sw*ci, R12 = -cO*sw - sO*cw*ci;
+  const R21 = sO*cw + cO*sw*ci, R22 = -sO*sw + cO*cw*ci;
+  const R31 = sw*si,            R32 = cw*si;
+  return { r: [R11*xp + R12*yp, R21*xp + R22*yp, R31*xp + R32*yp], v: [R11*vxp + R12*vyp, R21*vxp + R22*vyp, R31*vxp + R32*vyp] };
+}
+function stateToElements(r, v, mu) {
+  const rn = norm(r), vn = norm(v);
+  const h = cross(r, v, [0,0,0]); const hn = norm(h);
+  const energy = vn*vn/2 - mu/rn;
+  const a = -mu / (2*energy);
+  const rv = dot(r, v);
+  const evec = [ (vn*vn - mu/rn)*r[0]/mu - rv*v[0]/mu, (vn*vn - mu/rn)*r[1]/mu - rv*v[1]/mu, (vn*vn - mu/rn)*r[2]/mu - rv*v[2]/mu ];
+  const e = norm(evec);
+  const inc = Math.acos(Math.max(-1, Math.min(1, h[2]/hn)));
+  const nvec = [-h[1], h[0], 0]; const nn = norm(nvec);
+  let Om = nn > 1e-300 ? Math.atan2(nvec[1], nvec[0]) : 0; if (Om < 0) Om += 2*Math.PI;
+  let w, nu;
+  if (nn > 1e-300 && e > 1e-14) { w = Math.acos(Math.max(-1, Math.min(1, dot(nvec, evec)/(nn*e)))); if (evec[2] < 0) w = 2*Math.PI - w; }
+  else if (e > 1e-14) { w = Math.atan2(evec[1], evec[0]); if (w < 0) w += 2*Math.PI; }
+  else w = 0;
+  if (e > 1e-14) { nu = Math.acos(Math.max(-1, Math.min(1, dot(evec, r)/(e*rn)))); if (rv < 0) nu = 2*Math.PI - nu; }
+  else { nu = Math.acos(Math.max(-1, Math.min(1, dot(nvec, r)/(nn*rn)))); if (r[2] < 0) nu = 2*Math.PI - nu; }
+  const E = 2*Math.atan2(Math.sqrt(1-e)*Math.sin(nu/2), Math.sqrt(1+e)*Math.cos(nu/2));
+  let M = E - e*Math.sin(E); if (M < 0) M += 2*Math.PI;
+  const period = a > 0 ? 2*Math.PI*Math.sqrt(a*a*a/mu) : NaN;
+  return { a, e, i: inc, Om, w, nu, M, energy, h, hn, period };
+}
+// Two-body propagation by dt (elliptic only).
+function keplerPropagate(r, v, mu, dt) {
+  const el = stateToElements(r, v, mu);
+  const n = Math.sqrt(mu / (el.a*el.a*el.a));
+  return elementsToState({ a: el.a, e: el.e, i: el.i, Om: el.Om, w: el.w, M: el.M + n*dt }, mu);
+}
+
+// ---------------------------------------------------------------- mesh
+// Icosahedron subdivided `level` times, projected to the unit sphere.
+function icosphere(level) {
+  const t = (1 + Math.sqrt(5)) / 2;
+  let verts = [[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]].map(normalize);
+  let faces = [[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],[3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  for (let l = 0; l < level; l++) {
+    const cache = new Map(); const nf = [];
+    const mid = (a, b) => { const key = a < b ? a+'_'+b : b+'_'+a; if (cache.has(key)) return cache.get(key); const m = normalize(add(verts[a], verts[b])); verts.push(m); cache.set(key, verts.length-1); return verts.length-1; };
+    for (const [a,b,c] of faces) { const ab = mid(a,b), bc = mid(b,c), ca = mid(c,a); nf.push([a,ab,ca],[b,bc,ab],[c,ca,bc],[ab,bc,ca]); }
+    faces = nf;
+  }
+  return { verts, faces };
+}
+// Deterministic irregular convex-ish shape: triaxial ellipsoid with small
+// smooth radial undulations. `shape` = {axes:[a,b,c] (m), bumps:[{k:[3],amp,phase}]}.
+function shapeRadius(shape, u) {
+  let f = 1;
+  for (const b of shape.bumps) f += b.amp * Math.cos(b.k[0]*u[0] + b.k[1]*u[1] + b.k[2]*u[2] + b.phase);
+  return f;
+}
+function buildMesh(shape, level) {
+  const { verts, faces } = icosphere(level);
+  const V = verts.map(u => { const f = shapeRadius(shape, u); return [shape.axes[0]*u[0]*f, shape.axes[1]*u[1]*f, shape.axes[2]*u[2]*f]; });
+  // Ensure outward orientation.
+  const F = faces.map(([a,b,c]) => { const n = cross(sub(V[b],V[a]), sub(V[c],V[a]), [0,0,0]); const cen = scale(add(add(V[a],V[b]),V[c]),1/3); return dot(n, cen) > 0 ? [a,b,c] : [a,c,b]; });
+  return massProperties(V, F);
+}
+// Uniform-density mass properties from a closed triangle mesh (tetrahedron
+// decomposition about the origin). Returns mesh in the PRINCIPAL-AXIS frame
+// with the centre of mass at the origin and I_x <= I_y <= I_z.
+function massProperties(V, F) {
+  let vol = 0; const cm = [0,0,0]; const C = [[0,0,0],[0,0,0],[0,0,0]];
+  for (const [ia,ib,ic] of F) {
+    const a = V[ia], b = V[ib], c = V[ic];
+    const vt = dot(a, cross(b, c, [0,0,0])) / 6; vol += vt;
+    for (let k = 0; k < 3; k++) cm[k] += vt * (a[k]+b[k]+c[k]) / 4;
+    const s = add(add(a,b),c);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] += vt/20 * (a[i]*a[j] + b[i]*b[j] + c[i]*c[j] + s[i]*s[j]);
+  }
+  for (let k = 0; k < 3; k++) cm[k] /= vol;
+  // Shift covariance to the centre of mass (density 1 for now).
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] -= vol * cm[i]*cm[j];
+  const tr = C[0][0]+C[1][1]+C[2][2];
+  const I = [[tr - C[0][0], -C[0][1], -C[0][2]], [-C[1][0], tr - C[1][1], -C[1][2]], [-C[2][0], -C[2][1], tr - C[2][2]]];
+  const { values, vectors } = jacobiEigen(I); // vectors: columns are principal axes in the original frame
+  // Sort ascending, build rotation body_original -> principal (rows = axes)
+  const order = [0,1,2].sort((p,q) => values[p]-values[q]);
+  let axes = order.map(k => [vectors[0][k], vectors[1][k], vectors[2][k]]);
+  const det = dot(axes[0], cross(axes[1], axes[2], [0,0,0])); if (det < 0) axes[2] = scale(axes[2], -1);
+  const Vp = V.map(v => { const d = sub(v, cm); return [dot(axes[0], d), dot(axes[1], d), dot(axes[2], d)]; });
+  const Iprinc = order.map(k => values[k]); // per unit density
+  const nf = F.length;
+  const normals = new Float64Array(nf*3), areas = new Float64Array(nf), centroids = new Float64Array(nf*3);
+  let maxNonConvex = 0, rmax = 0;
+  for (let f = 0; f < nf; f++) {
+    const [ia,ib,ic] = F[f]; const a = Vp[ia], b = Vp[ib], c = Vp[ic];
+    const n = cross(sub(b,a), sub(c,a), [0,0,0]); const nn = norm(n);
+    areas[f] = nn/2; normals[3*f]=n[0]/nn; normals[3*f+1]=n[1]/nn; normals[3*f+2]=n[2]/nn;
+    centroids[3*f]=(a[0]+b[0]+c[0])/3; centroids[3*f+1]=(a[1]+b[1]+c[1])/3; centroids[3*f+2]=(a[2]+b[2]+c[2])/3;
+  }
+  for (const v of Vp) rmax = Math.max(rmax, norm(v));
+  // Convexity check: every vertex must lie on the inner side of every facet plane.
+  for (let f = 0; f < nf; f++) { const n = [normals[3*f],normals[3*f+1],normals[3*f+2]]; const p = Vp[F[f][0]]; for (const v of Vp) { const d = dot(n, sub(v, p)); if (d > maxNonConvex) maxNonConvex = d; } }
+  let area = 0; for (let f = 0; f < nf; f++) area += areas[f];
+  return { verts: Vp, faces: F, normals, areas, centroids, volume: vol, area, inertiaPerDensity: Iprinc, rmax, maxNonConvex, comShift: norm(cm), nFaces: nf };
+}
+function jacobiEigen(Ain) {
+  const A = Ain.map(r => r.slice()); const V = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0; for (let i = 0; i < 3; i++) for (let j = i+1; j < 3; j++) off += A[i][j]*A[i][j];
+    if (off < 1e-30 * (A[0][0]*A[0][0] + A[1][1]*A[1][1] + A[2][2]*A[2][2])) break;
+    for (let p = 0; p < 3; p++) for (let q = p+1; q < 3; q++) {
+      if (Math.abs(A[p][q]) < 1e-300) continue;
+      const theta = (A[q][q] - A[p][p]) / (2*A[p][q]);
+      const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta*theta + 1));
+      const c = 1/Math.sqrt(t*t+1), s = t*c;
+      for (let k = 0; k < 3; k++) { const akp = A[k][p], akq = A[k][q]; A[k][p] = c*akp - s*akq; A[k][q] = s*akp + c*akq; }
+      for (let k = 0; k < 3; k++) { const apk = A[p][k], aqk = A[q][k]; A[p][k] = c*apk - s*aqk; A[q][k] = s*apk + c*aqk; }
+      for (let k = 0; k < 3; k++) { const vkp = V[k][p], vkq = V[k][q]; V[k][p] = c*vkp - s*vkq; V[k][q] = s*vkp + c*vkq; }
+    }
+  }
+  return { values: [A[0][0], A[1][1], A[2][2]], vectors: V };
+}
+
+// ---------------------------------------------------------------- radiation model
+// Facet-summed direct radiation and thermal recoil, in the BODY frame.
+//   sB: unit vector to the Sun (body frame); flux: W/m^2 at the asteroid;
+//   T: Float64Array facet temperatures; opt: {alpha, rhoD, rhoS, eps, C_A};
+//   flags: {S, T}; out: {F_dir[3], F_th[3], tau_dir[3], tau_th[3]}; dT: output dT/dt (may be null).
+// Direct force per illuminated facet (cos = n.s > 0), d = -s incident direction:
+//   F = (I A cos / c) [ -(alpha + rhoD) s - (2 rhoS cos + 2/3 rhoD) n ]
+// Thermal (Lambertian emission):  F = -(2/(3c)) eps sigma A T^4 n
+// Lumped facet temperature:       C_A dT/dt = alpha I max(0, n.s) - eps sigma T^4
+function facetRadiation(mesh, sB, flux, T, opt, flags, out, dT) {
+  const nf = mesh.nFaces, N = mesh.normals, A = mesh.areas, Cn = mesh.centroids;
+  const c = CONST.c, sig = CONST.sigma;
+  const kAbs = (opt.alpha + opt.rhoD), kS = 2*opt.rhoS, kD = 2/3*opt.rhoD;
+  const thK = 2/3 * opt.eps * sig / c, emK = opt.eps * sig, invC = 1/opt.C_A, aI = opt.alpha * flux;
+  let Fdx=0,Fdy=0,Fdz=0, Ftx=0,Fty=0,Ftz=0, Tdx=0,Tdy=0,Tdz=0, Ttx=0,Tty=0,Ttz=0;
+  const sx = sB[0], sy = sB[1], sz = sB[2];
+  for (let f = 0; f < nf; f++) {
+    const nx = N[3*f], ny = N[3*f+1], nz = N[3*f+2], a = A[f];
+    const cos = nx*sx + ny*sy + nz*sz;
+    const rx = Cn[3*f], ry = Cn[3*f+1], rz = Cn[3*f+2];
+    const Tf = T[f], T4 = Tf*Tf*Tf*Tf;
+    if (dT) dT[f] = ((cos > 0 ? aI*cos : 0) - emK*T4) * invC;
+    if (flags.T) {
+      const m = -thK * a * T4; const fx = m*nx, fy = m*ny, fz = m*nz;
+      Ftx += fx; Fty += fy; Ftz += fz;
+      Ttx += ry*fz - rz*fy; Tty += rz*fx - rx*fz; Ttz += rx*fy - ry*fx;
+    }
+    if (flags.S && cos > 0) {
+      const p = flux * a * cos / c; const kn = -(kS*cos + kD) * p, ks = -kAbs * p;
+      const fx = ks*sx + kn*nx, fy = ks*sy + kn*ny, fz = ks*sz + kn*nz;
+      Fdx += fx; Fdy += fy; Fdz += fz;
+      Tdx += ry*fz - rz*fy; Tdy += rz*fx - rx*fz; Tdz += rx*fy - ry*fx;
+    }
+  }
+  out.F_dir[0]=Fdx; out.F_dir[1]=Fdy; out.F_dir[2]=Fdz; out.F_th[0]=Ftx; out.F_th[1]=Fty; out.F_th[2]=Ftz;
+  out.tau_dir[0]=Tdx; out.tau_dir[1]=Tdy; out.tau_dir[2]=Tdz; out.tau_th[0]=Ttx; out.tau_th[1]=Tty; out.tau_th[2]=Ttz;
+  return out;
+}
+function makeRadOut() { return { F_dir: [0,0,0], F_th: [0,0,0], tau_dir: [0,0,0], tau_th: [0,0,0] }; }
+function solarFlux(dist) { return CONST.L_sun / (4*Math.PI*dist*dist); }
+
+// ---------------------------------------------------------------- Dormand–Prince 5(4)
+// Generic adaptive integrator. rhs(t, y, dydt). atol/rtol are per-component arrays.
+// Error norm: max over components of |err_i| / (atol_i + rtol_i*max(|y_i|,|ynew_i|)).
+const DP = {
+  c: [0, 1/5, 3/10, 4/5, 8/9, 1, 1],
+  a: [[], [1/5], [3/40, 9/40], [44/45, -56/15, 32/9], [19372/6561, -25360/2187, 64448/6561, -212/729],
+      [9017/3168, -355/33, 46732/5247, 49/176, -5103/18656], [35/384, 0, 500/1113, 125/192, -2187/6784, 11/84]],
+  e: [71/57600, 0, -71/16695, 71/1920, -17253/339200, 22/525, -1/40],
+};
+function makeIntegrator(n, rhs, atol, rtol, opts = {}) {
+  const k = []; for (let i = 0; i < 7; i++) k.push(new Float64Array(n));
+  const ytmp = new Float64Array(n), ynew = new Float64Array(n), err = new Float64Array(n);
+  const st = { t: 0, y: new Float64Array(n), h: opts.h0 || 60, hmin: opts.hmin || 1e-3, hmax: opts.hmax || 1e7,
+               nAccept: 0, nReject: 0, nEval: 0, lastErr: 0, fsal: false, hMaxUsed: 0, k, ynew, err };
+  // Take one adaptive step (possibly several rejected attempts). Returns actual h used.
+  st.step = function () {
+    const y = st.y; let h = st.h;
+    if (!st.fsal) { rhs(st.t, y, k[0]); st.nEval++; }
+    for (let attempt = 0; attempt < 50; attempt++) {
+      for (let s = 1; s < 7; s++) {
+        const as = DP.a[s];
+        for (let i = 0; i < n; i++) { let acc = 0; for (let j = 0; j < s; j++) acc += as[j]*k[j][i]; ytmp[i] = y[i] + h*acc; }
+        if (s === 6) { for (let i = 0; i < n; i++) ynew[i] = ytmp[i]; rhs(st.t + h, ynew, k[6]); }
+        else rhs(st.t + DP.c[s]*h, ytmp, k[s]);
+        st.nEval++;
+      }
+      let emax = 0;
+      for (let i = 0; i < n; i++) {
+        let ei = 0; for (let j = 0; j < 7; j++) ei += DP.e[j]*k[j][i]; ei *= h; err[i] = ei;
+        const sc = atol[i] + rtol[i]*Math.max(Math.abs(y[i]), Math.abs(ynew[i]));
+        const r = Math.abs(ei)/sc; if (r > emax) emax = r;
+      }
+      st.lastErr = emax;
+      if (emax <= 1 || h <= st.hmin) {
+        st.t += h; st.tLast = h;
+        for (let i = 0; i < n; i++) y[i] = ynew[i];
+        const tmp = k[0]; k[0] = k[6]; k[6] = tmp; st.fsal = true; // FSAL
+        st.nAccept++;
+        let fac = emax === 0 ? 5 : Math.min(5, Math.max(0.2, 0.9*Math.pow(emax, -0.2)));
+        if (attempt > 0) fac = Math.min(fac, 1); // no growth immediately after a rejection
+        st.h = Math.min(st.hmax, Math.max(st.hmin, h*fac));
+        if (h > st.hMaxUsed) st.hMaxUsed = h;
+        if (st.onAccept) st.onAccept(h, err);
+        return h;
+      }
+      st.nReject++;
+      h = Math.max(st.hmin, h*Math.max(0.2, 0.9*Math.pow(emax, -0.2)));
+    }
+    throw new Error('DP54: step failed');
+  };
+  // Integrate to exactly tEnd (last step clipped).
+  st.integrateTo = function (tEnd) {
+    while (st.t < tEnd - 1e-12*Math.abs(tEnd)) {
+      const remain = tEnd - st.t;
+      if (st.h > remain) { const saved = st.h; st.h = remain; st.step(); st.h = Math.min(saved, st.hmax); }
+      else st.step();
+    }
+  };
+  st.reset = function () { st.fsal = false; st.nAccept = st.nReject = st.nEval = 0; };
+  return st;
+}
+
+// ---------------------------------------------------------------- presets
+const PRESETS = {
+  geographos: {
+    key: 'geographos', name: 'Geographos-inspired (synthetic)',
+    description: 'Elongated synthetic shape, 5.223 h rotation, approximate literature-inspired orbit. Not a shape model; not an ephemeris.',
+    orbit: { a: 1.2455, e: 0.3354, i: 13.34, Om: 337.24, w: 276.87, M: 40.0 }, // a in AU, angles deg; M ASSUMED
+    longAxis: 5000, axisRatios: [1, 0.40, 0.42], bumpSeed: 7, bumpAmp: 0.04,
+    density: 2000, spinPeriodH: 5.223, poleLon: 55, poleLat: -46, spinPhase: 0,
+    alpha: 0.87, rhoD: 0.10, rhoS: 0.03, eps: 0.90, C_A: 15000,
+    assumed: ['mean anomaly at t=0', 'bulk density 2000 kg/m^3', 'shape (synthetic triaxial + undulations)', 'optical coefficients', 'emissivity', 'heat capacity per unit area', 'principal-axis rotation', 'epoch and phase of planets'],
+    encounter: null,
+  },
+  ordinary: {
+    key: 'ordinary', name: 'Ordinary orbit (synthetic)',
+    description: 'A generic 600 m body on a mildly eccentric orbit outside Earth\'s.',
+    orbit: { a: 1.80, e: 0.15, i: 6.0, Om: 80.0, w: 120.0, M: 10.0 },
+    longAxis: 600, axisRatios: [1, 0.78, 0.70], bumpSeed: 3, bumpAmp: 0.04,
+    density: 2200, spinPeriodH: 6.0, poleLon: 200, poleLat: 60, spinPhase: 0,
+    alpha: 0.90, rhoD: 0.08, rhoS: 0.02, eps: 0.90, C_A: 12000,
+    assumed: ['all properties (synthetic object)'], encounter: null,
+  },
+  encounter: {
+    key: 'encounter', name: 'Synthetic Earth encounter',
+    description: 'Orbit constructed so a 300 m body passes ~0.02 AU from Earth about 150 days after t=0 (designed with two-body geometry; the actual approach emerges from the integration). Not a real object.',
+    orbit: null, // built by design
+    encounterDesign: { days: 150, missAU: 0.02, vRel: 6000, offsetDir: [0.0, 0.6, 0.8], velDir: [-1, 0.2, 0] },
+    longAxis: 300, axisRatios: [1, 0.72, 0.62], bumpSeed: 11, bumpAmp: 0.04,
+    density: 1900, spinPeriodH: 4.0, poleLon: 120, poleLat: 35, spinPhase: 0,
+    alpha: 0.88, rhoD: 0.09, rhoS: 0.03, eps: 0.90, C_A: 10000,
+    assumed: ['all properties (synthetic object)', 'encounter geometry (designed)'], encounter: true,
+  },
+  small: {
+    key: 'small', name: 'Small asteroid (30 m, synthetic)',
+    description: 'A 30 m body on the Geographos-like orbit. Radiation forces per unit mass are ~170x larger than for the 5 km body. Spin period 2 h is ASSUMED (real bodies this small often spin faster).',
+    orbit: { a: 1.2455, e: 0.3354, i: 13.34, Om: 337.24, w: 276.87, M: 40.0 },
+    longAxis: 30, axisRatios: [1, 0.55, 0.50], bumpSeed: 5, bumpAmp: 0.04,
+    density: 2000, spinPeriodH: 2.0, poleLon: 55, poleLat: -46, spinPhase: 0,
+    alpha: 0.87, rhoD: 0.10, rhoS: 0.03, eps: 0.90, C_A: 15000,
+    assumed: ['all properties (synthetic object)'], encounter: null,
+  },
+};
+// Deterministic LCG for shape undulations.
+function makeBumps(seed, amp) {
+  let s = (seed * 2654435761) >>> 0; const rnd = () => { s = (1664525*s + 1013904223) >>> 0; return s / 4294967296; };
+  const bumps = [];
+  for (let i = 0; i < 4; i++) bumps.push({ k: [2*(2*rnd()-1), 2*(2*rnd()-1), 2*(2*rnd()-1)], amp: amp*(0.5 + rnd()), phase: 2*Math.PI*rnd() }); // |k| <= 2 keeps the surface convex for amp <= 0.04
+  return bumps;
+}
+
+// ---------------------------------------------------------------- initial conditions
+function planetInitialStates() {
+  const GMsun = CONST.G * BODY_DEFS[0].mass;
+  const helio = new Array(NB);
+  const fromEl = (E, mu) => elementsToState({ a: E.a*CONST.AU, e: E.e, i: E.i*DEG, Om: E.Om*DEG, w: (E.wbar - E.Om)*DEG, M: (E.L - E.wbar)*DEG }, mu);
+  helio[IDX.SUN] = { r: [0,0,0], v: [0,0,0] };
+  const single = { Mercury: IDX.MERCURY, Venus: IDX.VENUS, Mars: IDX.MARS, Jupiter: IDX.JUPITER, Saturn: IDX.SATURN, Uranus: IDX.URANUS, Neptune: IDX.NEPTUNE };
+  for (const [nm, ix] of Object.entries(single)) helio[ix] = fromEl(PLANET_ELEMENTS[nm], GMsun + CONST.G*BODY_DEFS[ix].mass);
+  const mE = BODY_DEFS[IDX.EARTH].mass, mM = BODY_DEFS[IDX.MOON].mass;
+  const emb = fromEl(PLANET_ELEMENTS.EMB, GMsun + CONST.G*(mE+mM));
+  const ME = MOON_ELEMENTS;
+  const rel = elementsToState({ a: ME.a, e: ME.e, i: ME.i*DEG, Om: ME.Om*DEG, w: ME.w*DEG, M: ME.M*DEG }, CONST.G*(mE+mM));
+  helio[IDX.EARTH] = { r: sub(emb.r, scale(rel.r, mM/(mE+mM))), v: sub(emb.v, scale(rel.v, mM/(mE+mM))) };
+  helio[IDX.MOON]  = { r: add(emb.r, scale(rel.r, mE/(mE+mM))), v: add(emb.v, scale(rel.v, mE/(mE+mM))) };
+  // Shift to the barycentre with zero total momentum.
+  let Mtot = 0; const R = [0,0,0], Vv = [0,0,0];
+  for (let i = 0; i < NB; i++) { const m = BODY_DEFS[i].mass; Mtot += m; for (let k = 0; k < 3; k++) { R[k] += m*helio[i].r[k]; Vv[k] += m*helio[i].v[k]; } }
+  for (let k = 0; k < 3; k++) { R[k] /= Mtot; Vv[k] /= Mtot; }
+  return helio.map(s => ({ r: sub(s.r, R), v: sub(s.v, Vv) })); // barycentric states; helio-to-bary offset = -R
+}
+
+// ---------------------------------------------------------------- simulation
+// State layout: massive bodies [r(3) v(3)] x NB, then 8 asteroid copies each
+// [r(3) v(3) q(4) omega_body(3) T(nFaces)].
+const RUNS = [];
+for (let code = 0; code < 8; code++) RUNS.push({ code, label: ((code>>2)&1)+''+((code>>1)&1)+''+(code&1), P: !!(code&4), S: !!(code&2), T: !!(code&1) });
+
+function buildConfig(preset, overrides = {}) {
+  const p = Object.assign({}, preset, overrides);
+  p.meshLevel = p.meshLevel ?? 2; // 0:20, 1:80, 2:320, 3:1280 facets
+  p.tol = p.tol || { rtolPos: 1e-10, atolPos: 1.0, rtolVel: 1e-10, atolVel: 1e-6, atolQ: 1e-7, rtolW: 1e-7, atolW: 1e-13, atolT: 1e-2, rtolT: 0, hmax: 86400*2 };
+  p.warmupPeriods = p.warmupPeriods ?? 3;
+  return p;
+}
+function makeSimulation(cfg) {
+  const shape = { axes: [cfg.longAxis/2, cfg.longAxis/2*cfg.axisRatios[1], cfg.longAxis/2*cfg.axisRatios[2]], bumps: makeBumps(cfg.bumpSeed, cfg.bumpAmp) };
+  const mesh = buildMesh(shape, cfg.meshLevel);
+  const nf = mesh.nFaces;
+  const mass = cfg.density * mesh.volume;
+  const I = mesh.inertiaPerDensity.map(v => v*cfg.density);
+  const opt = { alpha: cfg.alpha, rhoD: cfg.rhoD, rhoS: cfg.rhoS, eps: cfg.eps, C_A: cfg.C_A };
+  const AST_LEN = 13 + nf, NBASE = 6*NB, n = NBASE + 8*AST_LEN;
+  const GM = BODY_DEFS.map(b => CONST.G*b.mass);
+  const GMsun = GM[0];
+
+  // --- initial conditions
+  const bodies = planetInitialStates();
+  const sunR0 = bodies[0].r, sunV0 = bodies[0].v;
+  let astHelio, encounterInfo = null;
+  if (cfg.orbit) {
+    const o = cfg.orbit; astHelio = elementsToState({ a: o.a*CONST.AU, e: o.e, i: o.i*DEG, Om: o.Om*DEG, w: o.w*DEG, M: o.M*DEG }, GMsun);
+  } else {
+    // Synthetic encounter design using two-body Earth motion about the Sun.
+    const d = cfg.encounterDesign; const tEnc = d.days*CONST.DAY;
+    const eR0 = sub(bodies[IDX.EARTH].r, sunR0), eV0 = sub(bodies[IDX.EARTH].v, sunV0);
+    const eEnc = keplerPropagate(eR0, eV0, GMsun + GM[IDX.EARTH], tEnc);
+    const u = normalize(d.offsetDir); let wv = normalize(d.velDir); wv = normalize(sub(wv, scale(u, dot(wv,u)))); // perpendicular -> closest approach at tEnc
+    const rEnc = add(eEnc.r, scale(u, d.missAU*CONST.AU)), vEnc = add(eEnc.v, scale(wv, d.vRel));
+    astHelio = keplerPropagate(rEnc, vEnc, GMsun, -tEnc);
+    encounterInfo = { designedDays: d.days, designedMissAU: d.missAU, designedVrel: d.vRel };
+  }
+  const elems0 = stateToElements(astHelio.r, astHelio.v, GMsun);
+  // Pole -> body z (max inertia). ASSUMPTION: principal-axis rotation.
+  const lam = cfg.poleLon*DEG, bet = cfg.poleLat*DEG;
+  const pole = [Math.cos(bet)*Math.cos(lam), Math.cos(bet)*Math.sin(lam), Math.sin(bet)];
+  const q0 = qNormalize(qMul(qFromTo([0,0,1], pole), qFromAxisAngle([0,0,1], cfg.spinPhase*DEG)));
+  const omega0 = 2*Math.PI/(cfg.spinPeriodH*3600);
+  const wB0 = [0, 0, omega0];
+  const r0 = add(astHelio.r, sunR0), v0 = add(astHelio.v, sunV0);
+
+  // --- temperature warm-up (documented procedure):
+  // 1) seed each facet at radiative equilibrium for its spin-averaged insolation;
+  // 2) integrate the lumped temperature ODE (RK4, 720 substeps per period) over
+  //    `warmupPeriods` rotations with the orbit frozen at t=0 and the body
+  //    spinning uniformly about its principal axis, ending exactly at q0.
+  const T0 = new Float64Array(nf);
+  const warm = (() => {
+    const dSun = norm(astHelio.r), flux = solarFlux(dSun), sI = normalize(scale(astHelio.r, -1));
+    const R = new Float64Array(9), sB = [0,0,0];
+    const P = cfg.spinPeriodH*3600, steps = 720, dt = P/steps;
+    const Ntot = cfg.warmupPeriods*steps;
+    const qAt = (k) => qMul(q0, qFromAxisAngle([0,0,1], omega0*(k - Ntot)*dt));
+    const cosAt = (k, out) => { qToMatrix(qAt(k), R); matTVec(R, sI, sB); for (let f = 0; f < nf; f++) { const cs = mesh.normals[3*f]*sB[0]+mesh.normals[3*f+1]*sB[1]+mesh.normals[3*f+2]*sB[2]; out[f] = cs > 0 ? cs : 0; } };
+    const avg = new Float64Array(nf), tmp = new Float64Array(nf);
+    for (let k = 0; k < steps; k++) { cosAt(k, tmp); for (let f = 0; f < nf; f++) avg[f] += tmp[f]/steps; }
+    for (let f = 0; f < nf; f++) T0[f] = Math.max(40, Math.pow(cfg.alpha*flux*avg[f]/(cfg.eps*CONST.sigma), 0.25));
+    const emK = cfg.eps*CONST.sigma, aI = cfg.alpha*flux, invC = 1/cfg.C_A;
+    const c1 = new Float64Array(nf), c2 = new Float64Array(nf), c3 = new Float64Array(nf);
+    const k1 = new Float64Array(nf), k2 = new Float64Array(nf), k3 = new Float64Array(nf), k4 = new Float64Array(nf), Ty = new Float64Array(nf);
+    const Tprev = new Float64Array(nf); let periodicity = NaN;
+    for (let k = 0; k < Ntot; k++) {
+      if (k === Ntot - steps) Tprev.set(T0);
+      cosAt(k, c1); cosAt(k + 0.5, c2); cosAt(k + 1, c3);
+      for (let f = 0; f < nf; f++) k1[f] = (aI*c1[f] - emK*T0[f]**4)*invC;
+      for (let f = 0; f < nf; f++) { Ty[f] = T0[f] + 0.5*dt*k1[f]; k2[f] = (aI*c2[f] - emK*Ty[f]**4)*invC; }
+      for (let f = 0; f < nf; f++) { Ty[f] = T0[f] + 0.5*dt*k2[f]; k3[f] = (aI*c2[f] - emK*Ty[f]**4)*invC; }
+      for (let f = 0; f < nf; f++) { Ty[f] = T0[f] + dt*k3[f]; k4[f] = (aI*c3[f] - emK*Ty[f]**4)*invC; }
+      for (let f = 0; f < nf; f++) T0[f] += dt/6*(k1[f] + 2*k2[f] + 2*k3[f] + k4[f]);
+    }
+    periodicity = 0; for (let f = 0; f < nf; f++) periodicity = Math.max(periodicity, Math.abs(T0[f]-Tprev[f]));
+    let Tmin = Infinity, Tmax = -Infinity; for (let f = 0; f < nf; f++) { Tmin = Math.min(Tmin, T0[f]); Tmax = Math.max(Tmax, T0[f]); }
+    return { periods: cfg.warmupPeriods, substepsPerPeriod: steps, periodicityResidualK: periodicity, Tmin, Tmax, flux, dist: dSun };
+  })();
+
+  // --- assemble state
+  const y0 = new Float64Array(n);
+  for (let i = 0; i < NB; i++) { for (let k = 0; k < 3; k++) { y0[6*i+k] = bodies[i].r[k]; y0[6*i+3+k] = bodies[i].v[k]; } }
+  const astOff = (j) => NBASE + j*AST_LEN;
+  for (let j = 0; j < 8; j++) {
+    const o = astOff(j);
+    for (let k = 0; k < 3; k++) { y0[o+k] = r0[k]; y0[o+3+k] = v0[k]; y0[o+10+k] = wB0[k]; }
+    for (let k = 0; k < 4; k++) y0[o+6+k] = q0[k];
+    for (let f = 0; f < nf; f++) y0[o+13+f] = T0[f];
+  }
+  // --- tolerances (separate error scales per state class)
+  const tol = cfg.tol; const atol = new Float64Array(n), rtol = new Float64Array(n);
+  for (let i = 0; i < NB; i++) for (let k = 0; k < 3; k++) { atol[6*i+k] = tol.atolPos; rtol[6*i+k] = tol.rtolPos; atol[6*i+3+k] = tol.atolVel; rtol[6*i+3+k] = tol.rtolVel; }
+  for (let j = 0; j < 8; j++) { const o = astOff(j);
+    for (let k = 0; k < 3; k++) { atol[o+k] = tol.atolPos; rtol[o+k] = tol.rtolPos; atol[o+3+k] = tol.atolVel; rtol[o+3+k] = tol.rtolVel; atol[o+10+k] = tol.atolW; rtol[o+10+k] = tol.rtolW; }
+    for (let k = 0; k < 4; k++) { atol[o+6+k] = tol.atolQ; rtol[o+6+k] = 0; }
+    for (let f = 0; f < nf; f++) { atol[o+13+f] = tol.atolT; rtol[o+13+f] = tol.rtolT; }
+  }
+
+  // --- right-hand side
+  const R = new Float64Array(9), sB = [0,0,0], sI = [0,0,0], Fb = [0,0,0], Fi = [0,0,0];
+  const rad = makeRadOut(); const dTbuf = new Float64Array(nf);
+  function rhs(t, y, dy) {
+    // Massive bodies: mutual point-mass gravity.
+    for (let i = 0; i < NB; i++) { dy[6*i] = y[6*i+3]; dy[6*i+1] = y[6*i+4]; dy[6*i+2] = y[6*i+5]; dy[6*i+3] = dy[6*i+4] = dy[6*i+5] = 0; }
+    for (let i = 0; i < NB; i++) for (let j = i+1; j < NB; j++) {
+      const dx = y[6*j]-y[6*i], dy_ = y[6*j+1]-y[6*i+1], dz = y[6*j+2]-y[6*i+2];
+      const d2 = dx*dx+dy_*dy_+dz*dz, inv = 1/(d2*Math.sqrt(d2));
+      const fi = GM[j]*inv, fj = GM[i]*inv;
+      dy[6*i+3] += fi*dx; dy[6*i+4] += fi*dy_; dy[6*i+5] += fi*dz;
+      dy[6*j+3] -= fj*dx; dy[6*j+4] -= fj*dy_; dy[6*j+5] -= fj*dz;
+    }
+    for (let jr = 0; jr < 8; jr++) {
+      const run = RUNS[jr], o = astOff(jr);
+      const rx = y[o], ry = y[o+1], rz = y[o+2];
+      let ax = 0, ay = 0, az = 0;
+      for (let b = 0; b < NB; b++) {
+        if (!run.P && (b === IDX.EARTH || b === IDX.MOON)) continue;
+        const dx = y[6*b]-rx, dy_ = y[6*b+1]-ry, dz = y[6*b+2]-rz;
+        const d2 = dx*dx+dy_*dy_+dz*dz, f = GM[b]/(d2*Math.sqrt(d2));
+        ax += f*dx; ay += f*dy_; az += f*dz;
+      }
+      // Sun direction and flux
+      const dsx = y[0]-rx, dsy = y[1]-ry, dsz = y[2]-rz; const dS = Math.sqrt(dsx*dsx+dsy*dsy+dsz*dsz);
+      sI[0] = dsx/dS; sI[1] = dsy/dS; sI[2] = dsz/dS;
+      const flux = solarFlux(dS);
+      const q = [y[o+6], y[o+7], y[o+8], y[o+9]];
+      const qn = Math.hypot(q[0],q[1],q[2],q[3]); q[0]/=qn; q[1]/=qn; q[2]/=qn; q[3]/=qn; // use the normalised orientation for geometry
+      qToMatrix(q, R); matTVec(R, sI, sB);
+      const T = y.subarray(o+13, o+13+nf);
+      facetRadiation(mesh, sB, flux, T, opt, run, rad, dTbuf);
+      for (let f = 0; f < nf; f++) dy[o+13+f] = dTbuf[f];
+      Fb[0] = rad.F_dir[0]+rad.F_th[0]; Fb[1] = rad.F_dir[1]+rad.F_th[1]; Fb[2] = rad.F_dir[2]+rad.F_th[2];
+      matVec(R, Fb, Fi);
+      dy[o] = y[o+3]; dy[o+1] = y[o+4]; dy[o+2] = y[o+5];
+      dy[o+3] = ax + Fi[0]/mass; dy[o+4] = ay + Fi[1]/mass; dy[o+5] = az + Fi[2]/mass;
+      // Attitude kinematics: dq/dt = 1/2 q * (0, w)
+      const wx = y[o+10], wy = y[o+11], wz = y[o+12];
+      const qw = y[o+6], qx = y[o+7], qy = y[o+8], qz = y[o+9];
+      dy[o+6] = 0.5*(-qx*wx - qy*wy - qz*wz);
+      dy[o+7] = 0.5*( qw*wx + qy*wz - qz*wy);
+      dy[o+8] = 0.5*( qw*wy - qx*wz + qz*wx);
+      dy[o+9] = 0.5*( qw*wz + qx*wy - qy*wx);
+      // Euler equations (principal axes): I dw/dt = tau - w x (I w)
+      const tx = rad.tau_dir[0]+rad.tau_th[0], ty = rad.tau_dir[1]+rad.tau_th[1], tz = rad.tau_dir[2]+rad.tau_th[2];
+      dy[o+10] = (tx - (I[2]-I[1])*wy*wz)/I[0];
+      dy[o+11] = (ty - (I[0]-I[2])*wz*wx)/I[1];
+      dy[o+12] = (tz - (I[1]-I[0])*wx*wy)/I[2];
+    }
+  }
+
+  const integ = makeIntegrator(n, rhs, atol, rtol, { h0: 60, hmin: 1e-3, hmax: tol.hmax });
+  integ.y.set(y0);
+  // Accumulated local-error estimate per run (crude truncation-error proxy) and quaternion-norm diagnostic.
+  const errAccum = RUNS.map(() => ({ pos: 0, vel: 0, q: 0, w: 0, T: 0 }));
+  let maxQnormDev = 0;
+  integ.onAccept = function (h, err) {
+    const y = integ.y;
+    for (let j = 0; j < 8; j++) { const o = astOff(j), e = errAccum[j];
+      e.pos += Math.hypot(err[o], err[o+1], err[o+2]); e.vel += Math.hypot(err[o+3], err[o+4], err[o+5]);
+      e.q += Math.hypot(err[o+6], err[o+7], err[o+8], err[o+9]); e.w += Math.hypot(err[o+10], err[o+11], err[o+12]);
+      let eT = 0; for (let f = 0; f < nf; f++) eT = Math.max(eT, Math.abs(err[o+13+f])); e.T += eT;
+      const qn = Math.hypot(y[o+6], y[o+7], y[o+8], y[o+9]); maxQnormDev = Math.max(maxQnormDev, Math.abs(qn-1));
+      y[o+6]/=qn; y[o+7]/=qn; y[o+8]/=qn; y[o+9]/=qn; // projection back to the unit sphere (documented)
+    }
+  };
+
+  // --- accessors
+  const sim = {
+    cfg, shape, mesh, mass, I, opt, n, nf, AST_LEN, NBASE, astOff, GM, integ, y0, q0, wB0, r0, v0, elems0, encounterInfo, warm, errAccum,
+    get t() { return integ.t; },
+    get maxQnormDev() { return maxQnormDev; },
+    bodyPos(i, y = integ.y) { return [y[6*i], y[6*i+1], y[6*i+2]]; },
+    bodyVel(i, y = integ.y) { return [y[6*i+3], y[6*i+4], y[6*i+5]]; },
+    astPos(j, y = integ.y) { const o = astOff(j); return [y[o], y[o+1], y[o+2]]; },
+    astVel(j, y = integ.y) { const o = astOff(j); return [y[o+3], y[o+4], y[o+5]]; },
+    astQ(j, y = integ.y) { const o = astOff(j); return qNormalize([y[o+6], y[o+7], y[o+8], y[o+9]]); },
+    astW(j, y = integ.y) { const o = astOff(j); return [y[o+10], y[o+11], y[o+12]]; },
+    astT(j, y = integ.y) { const o = astOff(j); return y.subarray(o+13, o+13+nf); },
+    // Heliocentric orbital elements of run j
+    astElements(j, y = integ.y) { const r = sub(sim.astPos(j, y), sim.bodyPos(0, y)), v = sub(sim.astVel(j, y), sim.bodyVel(0, y)); return stateToElements(r, v, GMsun); },
+    // Total mechanical energy, linear & angular momentum of the massive bodies
+    systemInvariants(y = integ.y) {
+      let E = 0; const P = [0,0,0], L = [0,0,0];
+      for (let i = 0; i < NB; i++) { const m = BODY_DEFS[i].mass, r = sim.bodyPos(i, y), v = sim.bodyVel(i, y); E += 0.5*m*dot(v,v); for (let k = 0; k < 3; k++) P[k] += m*v[k]; const l = cross(r, v, [0,0,0]); for (let k = 0; k < 3; k++) L[k] += m*l[k]; }
+      for (let i = 0; i < NB; i++) for (let j = i+1; j < NB; j++) E -= CONST.G*BODY_DEFS[i].mass*BODY_DEFS[j].mass / norm(sub(sim.bodyPos(i, y), sim.bodyPos(j, y)));
+      return { E, P, L };
+    },
+    // Instantaneous radiation forces/torques and illumination of run j (for display and diagnostics).
+    evaluateRun(j, y = integ.y) {
+      const run = RUNS[j], rA = sim.astPos(j, y), rS = sim.bodyPos(0, y);
+      const dvec = sub(rS, rA), dS = norm(dvec), sI = scale(dvec, 1/dS), flux = solarFlux(dS);
+      const q = sim.astQ(j, y), Rm = qToMatrix(q, new Float64Array(9)), sB = matTVec(Rm, sI, [0,0,0]);
+      const out = makeRadOut(); facetRadiation(mesh, sB, flux, sim.astT(j, y), opt, { S: true, T: true }, out, null);
+      const cosines = new Float64Array(nf); for (let f = 0; f < nf; f++) cosines[f] = mesh.normals[3*f]*sB[0]+mesh.normals[3*f+1]*sB[1]+mesh.normals[3*f+2]*sB[2];
+      const gEM = [0,0,0]; for (const b of [IDX.EARTH, IDX.MOON]) { const d = sub(sim.bodyPos(b, y), rA), dn = norm(d); for (let k = 0; k < 3; k++) gEM[k] += GM[b]*d[k]/(dn*dn*dn); }
+      const gSun = GM[0]/(dS*dS);
+      return { flux, dSun: dS, sI, sB, q, R: Rm, cosines, F_dir: matVec(Rm, out.F_dir, [0,0,0]), F_th: matVec(Rm, out.F_th, [0,0,0]), tau_dir_b: out.tau_dir, tau_th_b: out.tau_th,
+               F_dir_b: out.F_dir, F_th_b: out.F_th, aEM: norm(gEM), gSun, w: sim.astW(j, y), applied: { S: run.S, T: run.T, P: run.P } };
+    },
+    step() { return integ.step(); },
+  };
+  sim.inv0 = sim.systemInvariants(y0);
+  return sim;
+}
+
+// ---------------------------------------------------------------- comparison metrics
+// Signed displacement of run j relative to run ref in the reference run's
+// radial / along-track / normal (RTN) frame, plus scalar differences.
+function compareRuns(sim, j, ref = 7) {
+  const y = sim.integ.y;
+  const rS = sim.bodyPos(0, y), vS = sim.bodyVel(0, y);
+  const r1 = sub(sim.astPos(j, y), rS), v1 = sub(sim.astVel(j, y), vS);
+  const r0 = sub(sim.astPos(ref, y), rS), v0 = sub(sim.astVel(ref, y), vS);
+  const dr = sub(r1, r0), dv = sub(v1, v0);
+  const eR = normalize(r0), h = cross(r0, v0, [0,0,0]), eN = normalize(h), eT = cross(eN, eR, [0,0,0]);
+  const el1 = sim.astElements(j, y), el0 = sim.astElements(ref, y);
+  const w1 = sim.astW(j, y), w0 = sim.astW(ref, y);
+  const q1 = sim.astQ(j, y), q0 = sim.astQ(ref, y);
+  return {
+    dr: norm(dr), dv: norm(dv), radial: dot(dr, eR), along: dot(dr, eT), normal: dot(dr, eN),
+    da: el1.a - el0.a, de: el1.e - el0.e, plane: angleBetween(el1.h, el0.h),
+    dspin: norm(w1) - norm(w0), attitude: attitudeAngle(q1, q0), denergy: el1.energy - el0.energy,
+    spinRate: norm(w1), a: el1.a, e: el1.e, i: el1.i,
+  };
+}
+
+const OBSERVABLES = [
+  { key: 'along',   label: 'Along-track displacement', unit: 'm' },
+  { key: 'radial',  label: 'Radial displacement', unit: 'm' },
+  { key: 'normal',  label: 'Out-of-plane displacement', unit: 'm' },
+  { key: 'da',      label: 'Semi-major-axis difference', unit: 'm' },
+  { key: 'dspin',   label: 'Spin-rate difference', unit: 'rad/s' },
+  { key: 'denergy', label: 'Orbital specific-energy difference', unit: 'J/kg' },
+];
+// Factorial effects from signed outputs y[code] (code bits: P=4, S=2, T=1).
+function factorialEffects(yv) {
+  const g = (P,S,T) => yv[(P<<2)|(S<<1)|T];
+  const main = { P: [], S: [], T: [] };
+  for (let S = 0; S < 2; S++) for (let T = 0; T < 2; T++) main.P.push({ fixed: `S=${S},T=${T}`, value: g(1,S,T) - g(0,S,T) });
+  for (let P = 0; P < 2; P++) for (let T = 0; T < 2; T++) main.S.push({ fixed: `P=${P},T=${T}`, value: g(P,1,T) - g(P,0,T) });
+  for (let P = 0; P < 2; P++) for (let S = 0; S < 2; S++) main.T.push({ fixed: `P=${P},S=${S}`, value: g(P,S,1) - g(P,S,0) });
+  const inter = {
+    ST: [0,1].map(P => ({ fixed: `P=${P}`, value: g(P,1,1) - g(P,1,0) - g(P,0,1) + g(P,0,0) })),
+    PS: [0,1].map(T => ({ fixed: `T=${T}`, value: g(1,1,T) - g(1,0,T) - g(0,1,T) + g(0,0,T) })),
+    PT: [0,1].map(S => ({ fixed: `S=${S}`, value: g(1,S,1) - g(1,S,0) - g(0,S,1) + g(0,S,0) })),
+    PST: g(1,1,1) - g(1,1,0) - g(1,0,1) - g(0,1,1) + g(1,0,0) + g(0,1,0) + g(0,0,1) - g(0,0,0),
+  };
+  return { main, inter };
+}
+// Least-squares polynomial fit (degree 1 or 2) of y(t); returns coefficients and residual RMS.
+function polyFit(ts, ys, deg) {
+  const n = ts.length; if (n < deg + 2) return null;
+  const t0 = ts[0], tsc = (ts[n-1]-t0) || 1;
+  const m = deg + 1; const A = Array.from({ length: m }, () => new Float64Array(m)), b = new Float64Array(m);
+  for (let k = 0; k < n; k++) { const x = (ts[k]-t0)/tsc; const pw = [1, x, x*x]; for (let i = 0; i < m; i++) { b[i] += pw[i]*ys[k]; for (let j = 0; j < m; j++) A[i][j] += pw[i]*pw[j]; } }
+  // Gaussian elimination
+  for (let i = 0; i < m; i++) { let p = i; for (let r = i+1; r < m; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r; [A[i], A[p]] = [A[p], A[i]]; const bt = b[i]; b[i] = b[p]; b[p] = bt;
+    for (let r = i+1; r < m; r++) { const f = A[r][i]/A[i][i]; for (let c = i; c < m; c++) A[r][c] -= f*A[i][c]; b[r] -= f*b[i]; } }
+  const coef = new Float64Array(m); for (let i = m-1; i >= 0; i--) { let s = b[i]; for (let c = i+1; c < m; c++) s -= A[i][c]*coef[c]; coef[i] = s/A[i][i]; }
+  const evalAt = (t) => { const x = (t-t0)/tsc; let v = 0; for (let i = 0; i < m; i++) v += coef[i]*Math.pow(x, i); return v; };
+  let ss = 0; for (let k = 0; k < n; k++) { const d = ys[k]-evalAt(ts[k]); ss += d*d; }
+  return { coef, evalAt, rms: Math.sqrt(ss/n), slope: coef[1]/tsc, t0, tsc };
+}
+
+
+// ======================================================================
+// VERIFICATION SUITE — every check below is executed when requested; the
+// verdicts are computed from measured errors against stated thresholds.
+// verdict: 'pass' | 'fail' | 'unresolved'
+// ======================================================================
+function verdictOf(err, thr, resolvedFloor = 0) {
+  if (!isFinite(err)) return 'fail';
+  if (resolvedFloor > 0 && err < resolvedFloor && thr < resolvedFloor) return 'unresolved';
+  return err <= thr ? 'pass' : 'fail';
+}
+function testKeplerOrbit() {
+  // Sun-only two-body orbit integrated with the same DP5(4) code; compare with analytic invariants.
+  const mu = CONST.G*BODY_DEFS[0].mass;
+  const el0 = { a: 1.2455*CONST.AU, e: 0.3354, i: 13.34*DEG, Om: 337.24*DEG, w: 276.87*DEG, M: 0 }; // start at perihelion
+  const s0 = elementsToState(el0, mu);
+  const rhs = (t, y, dy) => { const r2 = y[0]*y[0]+y[1]*y[1]+y[2]*y[2], f = -mu/(r2*Math.sqrt(r2)); dy[0]=y[3]; dy[1]=y[4]; dy[2]=y[5]; dy[3]=f*y[0]; dy[4]=f*y[1]; dy[5]=f*y[2]; };
+  const atol = new Float64Array([1e-3,1e-3,1e-3,1e-9,1e-9,1e-9]), rtol = new Float64Array(6).fill(1e-12);
+  const ig = makeIntegrator(6, rhs, atol, rtol, { h0: 100, hmax: 5*CONST.DAY });
+  ig.y.set([...s0.r, ...s0.v]);
+  const E0 = stateToElements(s0.r, s0.v, mu); const Pan = E0.period;
+  let maxdE = 0, maxdH = 0, maxda = 0, maxde = 0, maxdi = 0;
+  // Measure period: time between successive perihelion passages (r.v changes sign - to +), interpolated.
+  let prevT = 0, prevRV = 0, perihelia = [];
+  while (ig.t < 2.2*Pan) {
+    const yPrev = Array.from(ig.y); const tPrev = ig.t; ig.step();
+    const r = [ig.y[0],ig.y[1],ig.y[2]], v = [ig.y[3],ig.y[4],ig.y[5]];
+    const el = stateToElements(r, v, mu);
+    maxdE = Math.max(maxdE, Math.abs((el.energy - E0.energy)/E0.energy));
+    maxdH = Math.max(maxdH, Math.abs((el.hn - E0.hn)/E0.hn));
+    maxda = Math.max(maxda, Math.abs((el.a - E0.a)/E0.a)); maxde = Math.max(maxde, Math.abs(el.e - E0.e)); maxdi = Math.max(maxdi, Math.abs(el.i - E0.i));
+    const rv = dot(r, v), rvPrev = dot([yPrev[0],yPrev[1],yPrev[2]], [yPrev[3],yPrev[4],yPrev[5]]);
+    if (ig.t > 0 && rvPrev < 0 && rv >= 0) { const frac = -rvPrev/(rv - rvPrev); perihelia.push(tPrev + frac*(ig.t - tPrev)); }
+  }
+  const Pmeas = perihelia.length >= 2 ? perihelia[1]-perihelia[0] : (perihelia.length === 1 ? perihelia[0] : NaN);
+  const thr = { E: 1e-10, H: 1e-10, a: 1e-9, e: 1e-9, i: 1e-11, P: 1e-7 };
+  const rows = [
+    { quantity: 'relative energy drift (max)', error: maxdE, threshold: thr.E },
+    { quantity: 'relative |h| drift (max)', error: maxdH, threshold: thr.H },
+    { quantity: 'relative a drift (max)', error: maxda, threshold: thr.a },
+    { quantity: 'e drift (max)', error: maxde, threshold: thr.e },
+    { quantity: 'i drift (rad, max)', error: maxdi, threshold: thr.i },
+    { quantity: `measured period vs 2π√(a³/μ) (rel; P=${(Pan/CONST.DAY).toFixed(4)} d)`, error: Math.abs(Pmeas - Pan)/Pan, threshold: thr.P },
+  ].map(r => Object.assign(r, { verdict: verdictOf(r.error, r.threshold) }));
+  return { name: 'Sun-only Kepler orbit (2.2 periods, DP5(4), rtol 1e-12)', rows, info: `steps ${ig.nAccept}, rejected ${ig.nReject}, perihelion passages detected: ${perihelia.length}` };
+}
+function testReflectingPlate() {
+  const I0 = 1361, A = 2.0;
+  const mk = (n) => ({ nFaces: 1, normals: new Float64Array(n), areas: new Float64Array([A]), centroids: new Float64Array([0,0,0]) });
+  const out = makeRadOut(); const T = new Float64Array([0]);
+  const rows = [];
+  // Ideal specular plate, normal incidence: F = 2 I A / c along -n (away from Sun)
+  facetRadiation(mk([0,0,1]), [0,0,1], I0, T, { alpha: 0, rhoD: 0, rhoS: 1, eps: 0, C_A: 1 }, { S: true, T: false }, out, null);
+  const Fexp = 2*I0*A/CONST.c;
+  rows.push({ quantity: 'ideal specular plate, normal incidence: |F| vs 2IA/c', error: Math.abs(norm(out.F_dir) - Fexp)/Fexp, threshold: 1e-12 });
+  rows.push({ quantity: 'ideal specular plate: direction along -n (1 - cos of angle)', error: 1 + dot(normalize(out.F_dir), [0,0,1]), threshold: 1e-12 });
+  // Specular at 60 deg: F = 2 I A cos^2 / c along -n
+  const th = 60*DEG; facetRadiation(mk([0,0,1]), [Math.sin(th),0,Math.cos(th)], I0, T, { alpha: 0, rhoD: 0, rhoS: 1, eps: 0, C_A: 1 }, { S: true, T: false }, out, null);
+  rows.push({ quantity: 'specular plate at 60°: |F| vs 2IA cos²θ/c', error: Math.abs(norm(out.F_dir) - 2*I0*A*Math.cos(th)**2/CONST.c)/(2*I0*A*Math.cos(th)**2/CONST.c), threshold: 1e-12 });
+  // Perfectly absorbing plate: F = I A / c along -s
+  facetRadiation(mk([0,0,1]), [0,0,1], I0, T, { alpha: 1, rhoD: 0, rhoS: 0, eps: 0, C_A: 1 }, { S: true, T: false }, out, null);
+  rows.push({ quantity: 'absorbing plate, normal incidence: |F| vs IA/c', error: Math.abs(norm(out.F_dir) - I0*A/CONST.c)/(I0*A/CONST.c), threshold: 1e-12 });
+  // Lambertian diffuse plate: F = I A / c (1 + 2/3)
+  facetRadiation(mk([0,0,1]), [0,0,1], I0, T, { alpha: 0, rhoD: 1, rhoS: 0, eps: 0, C_A: 1 }, { S: true, T: false }, out, null);
+  rows.push({ quantity: 'Lambertian plate, normal incidence: |F| vs (5/3) IA/c', error: Math.abs(norm(out.F_dir) - 5/3*I0*A/CONST.c)/(5/3*I0*A/CONST.c), threshold: 1e-12 });
+  // Inverse-square flux: I(2 AU)/I(1 AU) = 1/4
+  rows.push({ quantity: 'inverse-square flux: I(2 AU)/I(1 AU) vs 1/4', error: Math.abs(solarFlux(2*CONST.AU)/solarFlux(CONST.AU) - 0.25), threshold: 1e-14 });
+  // Thermal recoil of one facet: |F| = 2/(3c) eps sigma A T^4
+  const Tt = new Float64Array([300]); facetRadiation(mk([0,0,1]), [0,0,-1], I0, Tt, { alpha: 1, rhoD: 0, rhoS: 0, eps: 0.9, C_A: 1 }, { S: true, T: true }, out, null);
+  const Fth = 2/(3*CONST.c)*0.9*CONST.sigma*A*300**4;
+  rows.push({ quantity: 'thermal recoil of one facet at 300 K: |F| vs (2/3c) εσAT⁴', error: Math.abs(norm(out.F_th) - Fth)/Fth, threshold: 1e-12 });
+  rows.push({ quantity: 'unlit facet (cos<0) receives no direct force', error: norm(out.F_dir), threshold: 0 });
+  rows.forEach(r => r.verdict = verdictOf(r.error, r.threshold));
+  return { name: 'Ideal plates: direct radiation force & thermal recoil', rows, info: `I = ${I0} W/m², A = ${A} m²` };
+}
+function testTorque() {
+  // Single facet at lever arm r_c with prescribed force through the actual facet routine.
+  const A = 3.0, I0 = 1000; const rc = [0.4, 2.0, -0.7];
+  const mesh = { nFaces: 1, normals: new Float64Array([1,0,0]), areas: new Float64Array([A]), centroids: new Float64Array(rc) };
+  const out = makeRadOut();
+  facetRadiation(mesh, [1,0,0], I0, new Float64Array([0]), { alpha: 0, rhoD: 0, rhoS: 1, eps: 0, C_A: 1 }, { S: true, T: false }, out, null);
+  const F = [-2*I0*A/CONST.c, 0, 0]; const tauExp = cross(rc, F, [0,0,0]);
+  const rows = [
+    { quantity: '|τ| vs |r_c × F| (rel)', error: Math.abs(norm(out.tau_dir) - norm(tauExp))/norm(tauExp), threshold: 1e-12 },
+    { quantity: 'τ direction: 1 - cos(angle to r_c × F)', error: 1 - dot(normalize(out.tau_dir), normalize(tauExp)), threshold: 1e-12 },
+    { quantity: 'τ ⟂ r_c (|τ·r̂_c|/|τ|)', error: Math.abs(dot(out.tau_dir, rc))/(norm(out.tau_dir)*norm(rc)), threshold: 1e-12 },
+    { quantity: 'τ ⟂ F (|τ·F̂|/|τ|)', error: Math.abs(dot(out.tau_dir, F))/(norm(out.tau_dir)*norm(F)), threshold: 1e-12 },
+  ].map(r => Object.assign(r, { verdict: verdictOf(r.error, r.threshold) }));
+  return { name: 'Prescribed force & lever arm: torque', rows, info: `r_c = (${rc.join(', ')}) m, F = (${F[0].toExponential(3)}, 0, 0) N` };
+}
+function testRigidBody() {
+  // Torque-free asymmetric rotor: same kinematic/Euler equations as the main RHS.
+  const I = [2.0e5, 3.0e5, 4.0e5];
+  const w0 = [0.2e-3, 1.0e-3, 0.4e-3]; // rad/s, off-axis -> tumbling
+  const q0 = qNormalize([0.9, 0.1, -0.2, 0.3]);
+  const rhs = (t, y, dy) => {
+    const qw=y[0],qx=y[1],qy=y[2],qz=y[3], wx=y[4],wy=y[5],wz=y[6];
+    dy[0]=0.5*(-qx*wx-qy*wy-qz*wz); dy[1]=0.5*(qw*wx+qy*wz-qz*wy); dy[2]=0.5*(qw*wy-qx*wz+qz*wx); dy[3]=0.5*(qw*wz+qx*wy-qy*wx);
+    dy[4]=-(I[2]-I[1])*wy*wz/I[0]; dy[5]=-(I[0]-I[2])*wz*wx/I[1]; dy[6]=-(I[1]-I[0])*wx*wy/I[2];
+  };
+  const atol = new Float64Array([1e-10,1e-10,1e-10,1e-10,1e-16,1e-16,1e-16]), rtol = new Float64Array([0,0,0,0,1e-10,1e-10,1e-10]);
+  const ig = makeIntegrator(7, rhs, atol, rtol, { h0: 10, hmax: 1e5 });
+  ig.y.set([...q0, ...w0]);
+  const Erot = (w) => 0.5*(I[0]*w[0]*w[0]+I[1]*w[1]*w[1]+I[2]*w[2]*w[2]);
+  const Lin = (q, w) => qRotate(qNormalize(q), [I[0]*w[0], I[1]*w[1], I[2]*w[2]]);
+  const E0 = Erot(w0), L0 = Lin(q0, w0);
+  const Pspin = 2*Math.PI/norm(w0); const tEnd = 20*Pspin;
+  let maxdE = 0, maxdL = 0, maxAng = 0, maxQn = 0;
+  while (ig.t < tEnd) { ig.step(); const q = [ig.y[0],ig.y[1],ig.y[2],ig.y[3]], w = [ig.y[4],ig.y[5],ig.y[6]];
+    maxQn = Math.max(maxQn, Math.abs(Math.hypot(...q)-1));
+    maxdE = Math.max(maxdE, Math.abs(Erot(w)-E0)/E0); const L = Lin(q, w); maxdL = Math.max(maxdL, Math.abs(norm(L)-norm(L0))/norm(L0)); maxAng = Math.max(maxAng, angleBetween(L, L0)); }
+  const rows = [
+    { quantity: 'rotational kinetic energy drift (rel, max)', error: maxdE, threshold: 1e-9 },
+    { quantity: 'inertial |L| drift (rel, max)', error: maxdL, threshold: 1e-9 },
+    { quantity: 'inertial L direction wander (rad, max; threshold ≈ N_steps × atol_q)', error: maxAng, threshold: 1e-7 },
+    { quantity: 'quaternion norm deviation (diagnostic; no renormalisation in this test)', error: maxQn, threshold: 1e-8 },
+  ].map(r => Object.assign(r, { verdict: verdictOf(r.error, r.threshold) }));
+  return { name: 'Torque-free rigid body (20 spin periods, tumbling)', rows, info: `I = (${I.join(', ')}) kg m², ω0 = (${w0.join(', ')}) rad/s, steps ${ig.nAccept}` };
+}
+// Tolerance/step refinement on the CURRENT configuration over a short interval.
+function testRefinement(cfg, hours = 36) {
+  const tEnd = hours*3600;
+  let hCap = Infinity;
+  const run = (tolScale, hmaxScale) => {
+    const tol = Object.assign({}, cfg.tol); for (const k of ['rtolPos','atolPos','rtolVel','atolVel','atolQ','rtolW','atolW','atolT','rtolT']) tol[k] *= tolScale; tol.hmax = Math.min(tol.hmax, hCap*hmaxScale);
+    const sim = makeSimulation(Object.assign({}, cfg, { tol }));
+    sim.integ.integrateTo(tEnd);
+    const c111 = compareRuns(sim, 7, 7), c000 = compareRuns(sim, 0, 7), c100 = compareRuns(sim, 4, 7);
+    const T = sim.astT(7); let Tmean = 0; for (let f = 0; f < sim.nf; f++) Tmean += T[f]/sim.nf;
+    if (hCap === Infinity) hCap = sim.integ.hMaxUsed;
+    return { r: sim.astPos(7), v: sim.astVel(7), q: sim.astQ(7), w: norm(sim.astW(7)), Tmean, along000: c000.along, dr000: c000.dr, dr100: c100.dr, da100: c100.da, dspin000: c000.dspin, att000: c000.attitude, steps: sim.integ.nAccept, errPos: sim.errAccum[7].pos };
+  };
+  const base = run(1, 1), fine = run(0.1, 1), hstep = run(1, 0.5);
+  const rows = [];
+  const rel = (a, b) => Math.abs(a - b);
+  const add = (name, base, fine, thr, obs) => rows.push({ quantity: name, error: rel(base, fine), threshold: thr, magnitude: obs });
+  const drTol = norm(sub(base.r, fine.r)), drH = norm(sub(base.r, hstep.r));
+  rows.push({ quantity: `run 111 position change, tol×0.1 (m)`, error: drTol, threshold: 1.0 });
+  rows.push({ quantity: `run 111 position change, max step capped at ½ of the largest accepted step (m)`, error: drH, threshold: 1.0 });
+  rows.push({ quantity: `run 111 velocity change, tol×0.1 (m/s)`, error: norm(sub(base.v, fine.v)), threshold: 1e-6 });
+  rows.push({ quantity: `run 111 attitude change, tol×0.1 (rad)`, error: attitudeAngle(base.q, fine.q), threshold: 1e-5 });
+  rows.push({ quantity: `run 111 spin-rate change, tol×0.1 (rel)`, error: Math.abs(base.w - fine.w)/base.w, threshold: 1e-9 });
+  rows.push({ quantity: `run 111 mean facet temperature change, tol×0.1 (K)`, error: Math.abs(base.Tmean - fine.Tmean), threshold: 0.05 });
+  // Differences between runs must be stable under refinement relative to their own size.
+  rows.push({ quantity: `|Δr|(000−111) = ${base.dr000.toExponential(3)} m: change under tol×0.1 (m)`, error: rel(base.dr000, fine.dr000), threshold: Math.max(0.01*base.dr000, 1e-3), magnitude: base.dr000 });
+  rows.push({ quantity: `|Δr|(100−111) = ${base.dr100.toExponential(3)} m: change under tol×0.1 (m)`, error: rel(base.dr100, fine.dr100), threshold: Math.max(0.01*base.dr100, 1e-3), magnitude: base.dr100 });
+  rows.push({ quantity: `Δspin(000−111) = ${base.dspin000.toExponential(3)} rad/s: change under tol×0.1`, error: rel(base.dspin000, fine.dspin000), threshold: Math.max(0.01*Math.abs(base.dspin000), 1e-16), magnitude: base.dspin000 });
+  rows.forEach(r => { r.verdict = verdictOf(r.error, r.threshold); if (r.magnitude !== undefined && Math.abs(r.magnitude) < 3*r.error) r.verdict = 'unresolved'; });
+  return { name: `Tolerance / step refinement on the current configuration (${hours} h)`, rows,
+    info: `steps: base ${base.steps}, tol×0.1 ${fine.steps}, step-capped ${hstep.steps}. Accumulated local-error estimate (run 111 position): ${base.errPos.toExponential(2)} m. "unresolved" = observable magnitude within 3× its refinement change.` };
+}
+function testMeshRefinement(cfg) {
+  const rows = []; const L = Math.min(Math.max(cfg.meshLevel, 1), 2); const levels = [L-1, L, L+1]; const res = [];
+  for (const lvl of levels) {
+    const s = makeSimulation(Object.assign({}, cfg, { meshLevel: lvl, warmupPeriods: 2 }));
+    const y = s.y0;
+    const sI = normalize(sub(s.bodyPos(0, y), s.astPos(7, y))); const R = new Float64Array(9); qToMatrix(s.q0, R); const sB = matTVec(R, sI, [0,0,0]);
+    const out = makeRadOut(); facetRadiation(s.mesh, sB, solarFlux(norm(sub(s.bodyPos(0,y), s.astPos(7,y)))), s.astT(7, y), s.opt, { S: true, T: true }, out, null);
+    res.push({ lvl, nf: s.nf, vol: s.mesh.volume, I: s.I, Fd: out.F_dir, Ft: out.F_th, td: out.tau_dir, tt: out.tau_th, rmax: s.mesh.rmax, nonconvex: s.mesh.maxNonConvex, area: s.mesh.area });
+  }
+  const [r0, r1, r2] = res; const n0 = r0.nf, n1 = r1.nf, n2 = r2.nf;
+  const relv = (a, b) => Math.abs(a-b)/Math.abs(b);
+  const pair = (f) => `${n1}→${n2} facets (rel; ${n0}→${n1}: ${relv(f(r0), f(r1)).toExponential(2)})`;
+  rows.push({ quantity: `volume change ${pair(r=>r.vol)}`, error: relv(r1.vol, r2.vol), threshold: 0.05 });
+  rows.push({ quantity: `I_z change ${pair(r=>r.I[2])}`, error: relv(r1.I[2], r2.I[2]), threshold: 0.08 });
+  rows.push({ quantity: `|F_direct| change ${pair(r=>norm(r.Fd))}`, error: relv(norm(r1.Fd), norm(r2.Fd)), threshold: 0.05 });
+  rows.push({ quantity: `|F_thermal| change ${pair(r=>norm(r.Ft))}`, error: relv(norm(r1.Ft), norm(r2.Ft)), threshold: 0.05 });
+  const tnorm = (r) => norm(add(r.td, r.tt)) / (r.rmax*norm(add(r.Fd, r.Ft))); // torque normalised by r_max |F|
+  rows.push({ quantity: `normalised net torque |τ|/(r_max|F|) change ${n1}→${n2} (abs; values ${tnorm(r1).toExponential(2)} → ${tnorm(r2).toExponential(2)})`, error: Math.abs(tnorm(r1) - tnorm(r2)), threshold: 0.02 });
+  rows.push({ quantity: `convexity: max vertex excursion beyond any facet plane / r_max (${n1} facets)`, error: r1.nonconvex/r1.rmax, threshold: 1e-12 });
+  rows.forEach(r => r.verdict = verdictOf(r.error, r.threshold));
+  return { name: `Surface-mesh refinement (same underlying shape; ${n0} / ${n1} / ${n2} facets; current mesh ${cfg.meshLevel === L ? n1 : (cfg.meshLevel < L ? n0 : n2)} facets; t = 0 geometry)`, rows,
+    info: `Inscribed meshes converge to the smooth shape at second order (error ∝ 1/N_facets). Volumes ${res.map(r=>r.vol.toExponential(4)).join(' / ')} m³; |F_dir| ${res.map(r=>norm(r.Fd).toExponential(4)).join(' / ')} N. Facet-level torques are small differences of large terms, so they converge more slowly than forces.` };
+}
+function runVerification(cfg) {
+  return [testKeplerOrbit(), testReflectingPlate(), testTorque(), testRigidBody(), testRefinement(cfg), testMeshRefinement(cfg)];
+}
+// ======================================================================
+// USER INTERFACE — rendering, controls, tables, plots, exports.
+// Everything below is display; the physics above never depends on it.
+// ======================================================================
+const RUN_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']; // validated categorical palette (dark surface), fixed order by run code
+const INK = { primary: '#e8e6df', secondary: '#b8b6ab', muted: '#7f7d77', grid: '#232833', axis: '#3a4050' };
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- formatting
+function fmtSI(v, unit = '', digits = 3) {
+  if (v === undefined || v === null || !isFinite(v)) return '—';
+  if (v === 0) return '0 ' + unit;
+  const a = Math.abs(v);
+  const pref = [[1e12,'T'],[1e9,'G'],[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p'],[1e-15,'f'],[1e-18,'a']];
+  for (const [f, p] of pref) if (a >= f*0.9995) return (v/f).toPrecision(digits) + ' ' + p + unit;
+  return v.toExponential(digits-1) + ' ' + unit;
+}
+function fmtExp(v, d = 2) { return (v === undefined || !isFinite(v)) ? '—' : v.toExponential(d); }
+function fmtTime(sec) { const d = sec/CONST.DAY; if (d < 2) return (sec/3600).toFixed(2) + ' h'; if (d < 800) return d.toFixed(2) + ' d'; return (sec/CONST.YEAR).toFixed(3) + ' yr (' + d.toFixed(0) + ' d)'; }
+function fmtDeg(rad, d = 2) { return (rad/DEG).toFixed(d) + '°'; }
+function niceStep(range, target) { const raw = range/target, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw/p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10)*p; }
+
+// ---------------------------------------------------------------- application state
+const app = {
+  sim: null, cfg: null, presetKey: 'geographos',
+  playing: true, speedTarget: 1e6, achieved: 0, lastFrame: 0, budgetMs: 22, limited: false,
+  view: { cx: 0, cy: 0, scale: 1, initScale: 1 }, follow: 7 + 100, drag: null, // follow: body index 0..9, 100+run for asteroid, null for none
+  visible: [true, true, true, true, true, true, true, true],
+  trails: [], trailDt: 0.25*CONST.DAY, trailLast: -Infinity, TRAIL_N: 3000,
+  hist: { t: [], runs: RUNS.map(() => ({ dr: [], along: [], radial: [], normal: [], da: [], dspin: [], att: [], denergy: [], dx: [], dy: [] })), a111: [], dt: CONST.DAY, last: -Infinity, MAX: 6000 },
+  magLog: 7, magAuto: true, closeView: 'top', closeRun: 7,
+  encounterMin: { d: Infinity, t: 0 },
+  plotObs: 'along', plotFit: 1, lastPanel: 0, verifying: false,
+};
+const ACCURACY = { fast: { label: 'Fast (tolerances ×10)', scale: 10 }, standard: { label: 'Standard', scale: 1 }, precise: { label: 'Precise (tolerances ×0.1)', scale: 0.1 } };
+const BASE_TOL = { rtolPos: 1e-10, atolPos: 1.0, rtolVel: 1e-10, atolVel: 1e-6, atolQ: 1e-7, rtolW: 1e-7, atolW: 1e-13, atolT: 1e-2, rtolT: 0, hmax: 86400*2 };
+
+// ---------------------------------------------------------------- configuration from form
+function readForm() {
+  const preset = PRESETS[app.presetKey];
+  const f = (id) => parseFloat($(id).value);
+  const acc = ACCURACY[$('accuracy').value] || ACCURACY.standard;
+  const tol = Object.assign({}, BASE_TOL); for (const k of ['rtolPos','atolPos','rtolVel','atolVel','atolQ','rtolW','atolW','atolT']) tol[k] *= acc.scale;
+  const alpha = f('p_alpha'), rhoD = f('p_rhoD'); const rhoS = Math.max(0, 1 - alpha - rhoD);
+  return buildConfig(preset, {
+    longAxis: f('p_size'), density: f('p_density'), spinPeriodH: f('p_spin'), poleLon: f('p_poleLon'), poleLat: f('p_poleLat'),
+    alpha, rhoD, rhoS, eps: f('p_eps'), C_A: f('p_CA'), meshLevel: parseInt($('meshLevel').value), tol, accuracyKey: $('accuracy').value, warmupPeriods: 3,
+  });
+}
+function fillForm(preset) {
+  $('p_size').value = preset.longAxis; $('p_density').value = preset.density; $('p_spin').value = preset.spinPeriodH; $('p_poleLon').value = preset.poleLon; $('p_poleLat').value = preset.poleLat;
+  $('p_alpha').value = preset.alpha; $('p_rhoD').value = preset.rhoD; $('p_eps').value = preset.eps; $('p_CA').value = preset.C_A;
+  updateRhoS();
+}
+function updateRhoS() {
+  const a = parseFloat($('p_alpha').value), d = parseFloat($('p_rhoD').value); const s = 1 - a - d;
+  $('p_rhoS').textContent = s.toFixed(3); $('p_rhoS').className = s < -1e-9 ? 'bad' : '';
+  $('applyBtn').disabled = s < -1e-9;
+}
+
+// ---------------------------------------------------------------- (re)start
+function restart() {
+  app.cfg = readForm();
+  if (app.cfg.alpha + app.cfg.rhoD > 1 + 1e-9) return;
+  app.sim = makeSimulation(app.cfg);
+  const sim = app.sim;
+  app.trails = []; for (let i = 0; i < NB + 8; i++) app.trails.push({ x: new Float64Array(app.TRAIL_N), y: new Float64Array(app.TRAIL_N), n: 0, head: 0 });
+  app.trailLast = -Infinity; app.trailDt = Math.min(0.25*CONST.DAY, sim.elems0.period/1500);
+  app.hist.t = []; for (const r of app.hist.runs) for (const k of Object.keys(r)) r[k] = []; app.hist.a111 = []; app.hist.dt = sim.elems0.period/600; app.hist.last = -Infinity;
+  app.encounterMin = { d: Infinity, t: 0 };
+  app.achieved = 0; app.stepsLastSec = 0;
+  const prevAccept = sim.integ.onAccept;
+  sim.integ.onAccept = function (h, err) { prevAccept(h, err); afterStep(); };
+  app.speedTarget = sim.elems0.period/45; $('speed').value = Math.log10(app.speedTarget).toFixed(3);
+  sample(true); sampleTrails(true);
+  updateStatic(); updatePanels(true);
+  $('encounterNote').style.display = app.cfg.encounter ? '' : 'none';
+}
+function afterStep() {
+  const sim = app.sim, t = sim.t;
+  // closest Earth approach of run 111 so far
+  const d = norm(sub(sim.astPos(7), sim.bodyPos(IDX.EARTH))); if (d < app.encounterMin.d) app.encounterMin = { d, t };
+  if (t - app.trailLast >= app.trailDt) sampleTrails(false);
+  if (t - app.hist.last >= app.hist.dt) sample(false);
+}
+function sampleTrails(force) {
+  const sim = app.sim, y = sim.integ.y;
+  for (let i = 0; i < NB + 8; i++) {
+    const tr = app.trails[i]; const p = i < NB ? sim.bodyPos(i, y) : sim.astPos(i - NB, y);
+    tr.x[tr.head] = p[0]; tr.y[tr.head] = p[1]; tr.head = (tr.head + 1) % app.TRAIL_N; if (tr.n < app.TRAIL_N) tr.n++;
+  }
+  app.trailLast = sim.t;
+}
+function sample(force) {
+  const sim = app.sim, H = app.hist; const t = sim.t;
+  H.t.push(t);
+  const y = sim.integ.y; const r7 = sim.astPos(7, y);
+  for (let j = 0; j < 8; j++) {
+    const c = compareRuns(sim, j, 7); const r = H.runs[j]; const rj = sim.astPos(j, y);
+    r.dr.push(c.dr); r.along.push(c.along); r.radial.push(c.radial); r.normal.push(c.normal); r.da.push(c.da); r.dspin.push(c.dspin); r.att.push(c.attitude); r.denergy.push(c.denergy);
+    r.dx.push(rj[0]-r7[0]); r.dy.push(rj[1]-r7[1]);
+    if (j === 7) H.a111.push(c.a);
+  }
+  H.last = t;
+  if (H.t.length > H.MAX) { // decimate by 2
+    const keep = (arr) => arr.filter((_, i) => i % 2 === 0);
+    H.t = keep(H.t); H.a111 = keep(H.a111); for (const r of H.runs) for (const k of Object.keys(r)) r[k] = keep(r[k]); H.dt *= 2;
+  }
+}
+// Crude numerical noise floor for run-to-run differences (accumulated local error + round-off random walk).
+function noiseFloor(j) {
+  const sim = app.sim, e = sim.errAccum[j], N = Math.max(1, sim.integ.nAccept), eps = 2.2e-16;
+  const r = norm(sim.astPos(j)), v = norm(sim.astVel(j)), w = norm(sim.astW(j));
+  return { pos: e.pos + 4*Math.sqrt(N)*eps*r, vel: e.vel + 4*Math.sqrt(N)*eps*v, att: e.q*2 + 4*Math.sqrt(N)*eps, spin: e.w + 4*Math.sqrt(N)*eps*w, a: (e.pos + 4*Math.sqrt(N)*eps*r)*4 };
+}
+
+// ---------------------------------------------------------------- main loop
+function frame(now) {
+  requestAnimationFrame(frame);
+  const sim = app.sim; if (!sim) return;
+  let dtReal = app.lastFrame ? (now - app.lastFrame)/1000 : 0.016; app.lastFrame = now; dtReal = Math.min(dtReal, 0.1);
+  if (app.playing && !app.verifying) {
+    const tGoal = sim.t + app.speedTarget*dtReal; const t0 = sim.t; const start = performance.now();
+    while (sim.t < tGoal) { sim.step(); if (performance.now() - start > app.budgetMs) break; }
+    const adv = sim.t - t0; app.limited = sim.t < tGoal - 1e-6;
+    app.achieved = app.achieved ? 0.9*app.achieved + 0.1*(adv/dtReal) : adv/dtReal;
+  }
+  renderMain(); renderClose(); renderDisp();
+  if (now - app.lastPanel > 250) { app.lastPanel = now; updatePanels(false); }
+}
+
+// ---------------------------------------------------------------- main view
+const mainC = $('mainCanvas'), closeC = $('closeCanvas'), dispC = $('dispCanvas'), plotC = $('plotCanvas');
+let stars = null;
+function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; const W = Math.round(r.width*dpr), H = Math.round(r.height*dpr); if (c.width !== W || c.height !== H) { c.width = W; c.height = H; return true; } return false; }
+function makeStars(W, H) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  let s = 12345; const rnd = () => { s = (1664525*s + 1013904223) >>> 0; return s/4294967296; };
+  for (let i = 0; i < W*H/2500; i++) { const x = rnd()*W, y = rnd()*H, r = rnd(); g.fillStyle = `rgba(${200+55*rnd()|0},${205+40*rnd()|0},${230+25*rnd()|0},${0.15+0.7*r*r})`; g.beginPath(); g.arc(x, y, (0.4+1.1*r)*(window.devicePixelRatio||1), 0, 6.283); g.fill(); }
+  return c;
+}
+function w2s(x, y, W, H) { const v = app.view; return [W/2 + (x - v.cx)*v.scale, H/2 - (y - v.cy)*v.scale]; }
+function initView() { const W = mainC.width; app.view.scale = W/(3.6*CONST.AU); app.view.initScale = app.view.scale; app.view.cx = 0; app.view.cy = 0; }
+function followTarget() {
+  const sim = app.sim; if (app.follow === null) return null;
+  if (app.follow >= 100) return sim.astPos(app.follow - 100); return sim.bodyPos(app.follow);
+}
+function drawTrail(g, tr, color, W, H, alphaMax = 0.9) {
+  if (tr.n < 2) return;
+  const chunks = 12; const per = Math.ceil(tr.n/chunks);
+  const idx = (k) => (tr.head - tr.n + k + app.TRAIL_N*2) % app.TRAIL_N;
+  for (let c = 0; c < chunks; c++) {
+    const k0 = c*per, k1 = Math.min(tr.n - 1, (c+1)*per); if (k1 <= k0) continue;
+    g.globalAlpha = alphaMax*Math.pow((c+1)/chunks, 1.6); g.beginPath();
+    for (let k = k0; k <= k1; k++) { const i = idx(k); const [sx, sy] = w2s(tr.x[i], tr.y[i], W, H); if (k === k0) g.moveTo(sx, sy); else g.lineTo(sx, sy); }
+    g.strokeStyle = color; g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+function renderMain() {
+  const sim = app.sim; const resized = fitCanvas(mainC); const W = mainC.width, H = mainC.height; const g = mainC.getContext('2d');
+  if (resized || !stars) { stars = makeStars(W, H); if (!app.view.initScale || resized) { const old = app.view.scale/app.view.initScale, cx = app.view.cx, cy = app.view.cy; initView(); app.view.scale *= old; app.view.cx = cx; app.view.cy = cy; } }
+  const ft = followTarget(); if (ft) { app.view.cx = ft[0]; app.view.cy = ft[1]; }
+  g.fillStyle = '#070a12'; g.fillRect(0, 0, W, H); g.drawImage(stars, 0, 0);
+  const dpr = window.devicePixelRatio || 1; g.lineWidth = 1*dpr;
+  // trails
+  for (let i = 1; i < NB; i++) drawTrail(g, app.trails[i], BODY_DEFS[i].color, W, H, 0.55);
+  for (let j = 0; j < 8; j++) if (app.visible[j]) drawTrail(g, app.trails[NB + j], RUN_COLORS[j], W, H, 0.9);
+  // Sun glow
+  const [sx, sy] = w2s(...sim.bodyPos(0).slice(0, 2), W, H);
+  const rSunPx = Math.max(BODY_DEFS[0].radius*app.view.scale, 5*dpr);
+  const glow = g.createRadialGradient(sx, sy, 0, sx, sy, rSunPx*6); glow.addColorStop(0, 'rgba(255,220,150,0.55)'); glow.addColorStop(0.3, 'rgba(255,200,120,0.18)'); glow.addColorStop(1, 'rgba(255,190,100,0)');
+  g.fillStyle = glow; g.beginPath(); g.arc(sx, sy, rSunPx*6, 0, 6.283); g.fill();
+  g.fillStyle = '#fff1cc'; g.beginPath(); g.arc(sx, sy, rSunPx, 0, 6.283); g.fill();
+  // planets
+  g.font = `${11*dpr}px system-ui, -apple-system, sans-serif`; g.textBaseline = 'middle';
+  for (let i = 1; i < NB; i++) {
+    const p = sim.bodyPos(i); const [px, py] = w2s(p[0], p[1], W, H); if (px < -20 || py < -20 || px > W+20 || py > H+20) continue;
+    const rp = Math.max(BODY_DEFS[i].radius*app.view.scale, (i === IDX.MOON ? 1.8 : 2.8)*dpr);
+    g.fillStyle = BODY_DEFS[i].color; g.beginPath(); g.arc(px, py, rp, 0, 6.283); g.fill();
+    if (i !== IDX.MOON || app.view.scale*3.844e8 > 12*dpr) { g.fillStyle = INK.secondary; g.fillText(BODY_DEFS[i].name, px + rp + 4*dpr, py); }
+  }
+  // asteroid runs (true positions; they overlap at this scale)
+  let labelDone = false;
+  for (let j = 7; j >= 0; j--) if (app.visible[j]) {
+    const p = sim.astPos(j); const [px, py] = w2s(p[0], p[1], W, H);
+    g.strokeStyle = RUN_COLORS[j]; g.lineWidth = 1.5*dpr; g.beginPath(); g.moveTo(px, py - 5*dpr); g.lineTo(px + 5*dpr, py); g.lineTo(px, py + 5*dpr); g.lineTo(px - 5*dpr, py); g.closePath(); g.stroke();
+    if (!labelDone) { g.fillStyle = INK.primary; g.fillText('asteroid (8 runs)', px + 9*dpr, py); labelDone = true; }
+  }
+  g.lineWidth = 1*dpr;
+  // scale bar
+  const target = W*0.18/app.view.scale; const nice = niceStep(target*2, 2); const barPx = nice*app.view.scale;
+  g.strokeStyle = INK.secondary; g.beginPath(); g.moveTo(20*dpr, H - 24*dpr); g.lineTo(20*dpr + barPx, H - 24*dpr); g.stroke();
+  g.fillStyle = INK.secondary; g.textBaseline = 'bottom'; g.fillText(nice >= 0.01*CONST.AU ? (nice/CONST.AU).toPrecision(2) + ' AU' : fmtSI(nice, 'm', 2), 20*dpr, H - 28*dpr);
+  const rEarthPx = BODY_DEFS[IDX.EARTH].radius*app.view.scale;
+  g.fillStyle = INK.muted; g.fillText(rEarthPx < 2.8*dpr ? `body markers enlarged (Earth ×${(2.8*dpr/rEarthPx).toExponential(1)}); trails: last ${(app.trailDt*app.TRAIL_N/CONST.DAY).toFixed(0)} d` : 'bodies drawn to scale', 20*dpr, H - 8*dpr);
+}
+// interaction
+let downPos = null;
+mainC.addEventListener('mousedown', (e) => { downPos = [e.clientX, e.clientY]; app.drag = { x: e.clientX, y: e.clientY, cx: app.view.cx, cy: app.view.cy }; });
+window.addEventListener('mousemove', (e) => { if (!app.drag) return; const dpr = window.devicePixelRatio || 1; const dx = (e.clientX - app.drag.x)*dpr, dy = (e.clientY - app.drag.y)*dpr; if (Math.hypot(dx, dy) > 3) { app.follow = null; $('follow').value = 'none'; app.view.cx = app.drag.cx - dx/app.view.scale; app.view.cy = app.drag.cy + dy/app.view.scale; } });
+window.addEventListener('mouseup', (e) => {
+  if (app.drag && downPos && Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]) <= 3) { // click: follow nearest body
+    const r = mainC.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; const mx = (e.clientX - r.left)*dpr, my = (e.clientY - r.top)*dpr; const W = mainC.width, H = mainC.height;
+    let best = null, bd = 14*dpr;
+    for (let i = 0; i < NB; i++) { const p = app.sim.bodyPos(i); const [px, py] = w2s(p[0], p[1], W, H); const d = Math.hypot(px - mx, py - my); if (d < bd) { bd = d; best = i; } }
+    const pa = app.sim.astPos(7); const [ax, ay] = w2s(pa[0], pa[1], W, H); if (Math.hypot(ax - mx, ay - my) < bd) best = 107;
+    if (best !== null) { app.follow = best; $('follow').value = String(best); }
+  }
+  app.drag = null; downPos = null;
+});
+mainC.addEventListener('wheel', (e) => {
+  e.preventDefault(); const r = mainC.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; const mx = (e.clientX - r.left)*dpr, my = (e.clientY - r.top)*dpr; const W = mainC.width, H = mainC.height;
+  const f = Math.exp(-e.deltaY*0.0015); const v = app.view;
+  const wx = v.cx + (mx - W/2)/v.scale, wy = v.cy - (my - H/2)/v.scale;
+  v.scale = Math.min(Math.max(v.scale*f, W/(120*CONST.AU)), 1e-2); // clamp: 120 AU wide .. 100 m/px
+  if (app.follow === null) { v.cx = wx - (mx - W/2)/v.scale; v.cy = wy + (my - H/2)/v.scale; }
+}, { passive: false });
+
+// ---------------------------------------------------------------- close-up view
+function tempColor(u) {
+  const stops = [[0.00, 38, 22, 12], [0.30, 110, 47, 18], [0.60, 190, 96, 34], [0.85, 236, 160, 70], [1.00, 255, 226, 170]];
+  u = Math.max(0, Math.min(1, u)); let i = 0; while (i < stops.length - 2 && u > stops[i+1][0]) i++;
+  const [u0, r0, g0, b0] = stops[i], [u1, r1, g1, b1] = stops[i+1]; const f = (u - u0)/(u1 - u0);
+  return `rgb(${Math.round(r0 + f*(r1-r0))},${Math.round(g0 + f*(g1-g0))},${Math.round(b0 + f*(b1-b0))})`;
+}
+function arrow(g, x0, y0, x1, y1, color, width, dpr, dashed = false) {
+  g.strokeStyle = color; g.fillStyle = color; g.lineWidth = width*dpr; if (dashed) g.setLineDash([4*dpr, 4*dpr]);
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]);
+  const a = Math.atan2(y1 - y0, x1 - x0), hl = 7*dpr; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - hl*Math.cos(a - 0.4), y1 - hl*Math.sin(a - 0.4)); g.lineTo(x1 - hl*Math.cos(a + 0.4), y1 - hl*Math.sin(a + 0.4)); g.closePath(); g.fill();
+}
+function labelAt(g, text, x, y, color, dpr) {
+  const w = g.measureText(text).width; g.fillStyle = 'rgba(10,13,22,0.72)'; g.fillRect(x - 3*dpr, y - 7*dpr, w + 6*dpr, 14*dpr); g.fillStyle = color; g.fillText(text, x, y);
+}
+function cameraBasis(mode, ev) {
+  let toward, upHint;
+  if (mode === 'sun') { toward = ev.sI; upHint = [0,0,1]; }
+  else if (mode === 'pole') { toward = normalize(matVec(ev.R, [0,0,1], [0,0,0])); upHint = Math.abs(toward[2]) > 0.9 ? [0,1,0] : [0,0,1]; }
+  else { toward = [0,0,1]; upHint = [0,1,0]; }
+  let up = sub(upHint, scale(toward, dot(upHint, toward))); up = normalize(up); const right = cross(up, toward, [0,0,0]);
+  return { right, up, toward };
+}
+function renderClose() {
+  const sim = app.sim; fitCanvas(closeC); const W = closeC.width, H = closeC.height; const g = closeC.getContext('2d'); const dpr = window.devicePixelRatio || 1;
+  g.fillStyle = '#0a0d16'; g.fillRect(0, 0, W, H);
+  const j = app.closeRun; const ev = sim.evaluateRun(j); const mesh = sim.mesh, T = sim.astT(j);
+  const cam = cameraBasis(app.closeView, ev);
+  const cx = W*0.5, cy = H*0.52; const pxPerM = Math.min(W, H)*0.36/mesh.rmax;
+  let Tmin = Infinity, Tmax = -Infinity; for (let f = 0; f < sim.nf; f++) { if (T[f] < Tmin) Tmin = T[f]; if (T[f] > Tmax) Tmax = T[f]; }
+  // project vertices
+  const P = mesh.verts.map(v => { const w = matVec(ev.R, v, [0,0,0]); return [cx + dot(w, cam.right)*pxPerM, cy - dot(w, cam.up)*pxPerM, dot(w, cam.toward)]; });
+  const order = []; const nrm = [0,0,0];
+  for (let f = 0; f < sim.nf; f++) { matVec(ev.R, [mesh.normals[3*f], mesh.normals[3*f+1], mesh.normals[3*f+2]], nrm); const d = dot(nrm, cam.toward); if (d > 0) order.push([f, (P[mesh.faces[f][0]][2] + P[mesh.faces[f][1]][2] + P[mesh.faces[f][2]][2])/3]); }
+  order.sort((a, b) => a[1] - b[1]);
+  for (const [f] of order) {
+    const [a, b, c] = mesh.faces[f]; const u = (T[f] - Tmin)/Math.max(1e-9, Tmax - Tmin);
+    g.fillStyle = tempColor(u); g.beginPath(); g.moveTo(P[a][0], P[a][1]); g.lineTo(P[b][0], P[b][1]); g.lineTo(P[c][0], P[c][1]); g.closePath(); g.fill();
+    g.strokeStyle = ev.cosines[f] > 0 ? 'rgba(255,240,210,0.35)' : 'rgba(0,0,0,0.45)'; g.lineWidth = 0.7*dpr; g.stroke();
+  }
+  // spin axis (through COM, along body z) and sun direction, forces
+  const proj = (v) => [dot(v, cam.right), -dot(v, cam.up)];
+  const axisI = matVec(ev.R, [0,0,1], [0,0,0]); const [axx, axy] = proj(axisI); const L = mesh.rmax*pxPerM*1.35;
+  g.setLineDash([3*dpr, 3*dpr]); g.strokeStyle = 'rgba(200,220,240,0.7)'; g.lineWidth = 1*dpr; g.beginPath(); g.moveTo(cx - axx*L, cy - axy*L); g.lineTo(cx + axx*L, cy + axy*L); g.stroke(); g.setLineDash([]);
+  arrow(g, cx + axx*L*0.8, cy + axy*L*0.8, cx + axx*L, cy + axy*L, 'rgba(200,220,240,0.9)', 1, dpr);
+  g.font = `${10*dpr}px system-ui, sans-serif`; g.textBaseline = 'middle'; labelAt(g, 'spin axis (+ω)', cx + axx*L + 5*dpr, cy + axy*L, INK.secondary, dpr);
+  const [sxp, syp] = proj(ev.sI); const Ls = Math.min(W, H)*0.42;
+  arrow(g, cx + sxp*Ls*0.55, cy + syp*Ls*0.55, cx + sxp*Ls, cy + syp*Ls, '#ffd27a', 1.2, dpr); labelAt(g, 'to Sun', cx + sxp*Ls + 6*dpr, cy + syp*Ls, '#ffd27a', dpr);
+  const Fmax = Math.max(norm(ev.F_dir), norm(ev.F_th), 1e-300); const Fpx = Math.min(W, H)*0.46;
+  const drawF = (F, color, name, off) => { const [fx, fy] = proj(F); const len = norm(F)/Fmax*Fpx; if (len < 1) return; arrow(g, cx, cy, cx + fx/norm(F)*len, cy + fy/norm(F)*len, color, 2, dpr); labelAt(g, name, cx + fx/norm(F)*len + 6*dpr, cy + fy/norm(F)*len + off, color, dpr); };
+  drawF(ev.F_dir, '#c98500', 'F direct', -9*dpr); drawF(ev.F_th, '#d95926', 'F thermal', 9*dpr);
+  const tau = matVec(ev.R, add(ev.tau_dir_b, ev.tau_th_b), [0,0,0]); const tn = norm(tau);
+  if (tn > 0) { const [tx, ty] = proj(tau); const len = 50*dpr; arrow(g, cx, cy, cx + tx/tn*len, cy + ty/tn*len, '#9085e9', 1.2, dpr, true); labelAt(g, 'net torque (dir.)', cx + tx/tn*len + 6*dpr, cy + ty/tn*len, '#9085e9', dpr); }
+  // colour bar
+  const bw = 10*dpr, bh = H*0.45, bx = W - 26*dpr, by = H*0.12;
+  for (let k = 0; k < 40; k++) { g.fillStyle = tempColor(1 - k/39); g.fillRect(bx, by + k*bh/40, bw, bh/40 + 1); }
+  g.fillStyle = INK.secondary; g.textBaseline = 'top'; g.textAlign = 'right'; g.fillText(Tmax.toFixed(0) + ' K', bx - 4*dpr, by); g.textBaseline = 'bottom'; g.fillText(Tmin.toFixed(0) + ' K', bx - 4*dpr, by + bh); g.textAlign = 'left';
+  // captions
+  g.fillStyle = INK.primary; g.font = `${11*dpr}px system-ui, sans-serif`; g.textBaseline = 'top';
+  const viewName = { top: 'view: ecliptic north (top-down)', sun: 'view: from the Sun', pole: 'view: along spin axis' }[app.closeView];
+  g.fillText(`Run ${RUNS[j].label} · ${viewName}`, 10*dpr, 8*dpr);
+  g.fillStyle = INK.secondary; g.font = `${10*dpr}px system-ui, sans-serif`;
+  g.fillText(`shape 1 px = ${fmtSI(1/pxPerM, 'm', 2)} · force arrows ${Fpx/dpr|0} px = ${fmtSI(Fmax, 'N', 2)} (display scale) · torque arrow: direction only, |τ| = ${fmtSI(tn, 'N·m', 2)}`, 10*dpr, H - 44*dpr);
+  g.fillText(`|F_direct| = ${fmtSI(norm(ev.F_dir), 'N', 3)} · |F_thermal| = ${fmtSI(norm(ev.F_th), 'N', 3)} · flux ${ev.flux.toFixed(0)} W/m² at ${(ev.dSun/CONST.AU).toFixed(3)} AU · spin period ${(2*Math.PI/norm(ev.w)/3600).toFixed(4)} h`, 10*dpr, H - 30*dpr);
+  g.fillStyle = INK.muted; g.fillText(`facet colour = lumped temperature; lit facets outlined light. Forces shown are those the model computes; run ${RUNS[j].label} applies ${RUNS[j].S ? 'S' : '–'}${RUNS[j].T ? 'T' : '–'}.`, 10*dpr, H - 16*dpr);
+}
+
+// ---------------------------------------------------------------- displacement view
+function renderDisp() {
+  const sim = app.sim; fitCanvas(dispC); const W = dispC.width, H = dispC.height; const g = dispC.getContext('2d'); const dpr = window.devicePixelRatio || 1;
+  g.fillStyle = '#0a0d16'; g.fillRect(0, 0, W, H);
+  const y = sim.integ.y; const r7 = sim.astPos(7, y), v7 = sim.astVel(7, y), rS = sim.bodyPos(0, y);
+  // displacements
+  let maxD = 0; const D = [];
+  for (let j = 0; j < 8; j++) { const d = sub(sim.astPos(j, y), r7); D.push(d); if (app.visible[j] && j !== 7) maxD = Math.max(maxD, Math.hypot(d[0], d[1])); }
+  const basePxPerM = app.view.initScale; // metres per pixel of the initial main view define ×1
+  if (app.magAuto) { const need = maxD > 0 ? Math.min(W, H)*0.38/(maxD*basePxPerM) : 1e7; app.magLog = Math.min(12, Math.max(0, Math.floor(Math.log10(need)))); $('mag').value = app.magLog; }
+  const M = Math.pow(10, app.magLog); const k = basePxPerM*M; const cx = W/2, cy = H/2;
+  $('magLabel').textContent = `×10^${app.magLog}`;
+  // RTN guide directions (projection to x-y)
+  const eR = normalize(sub(r7, rS)), h = cross(sub(r7, rS), sub(v7, sim.bodyVel(0, y)), [0,0,0]), eN = normalize(h), eT = cross(eN, eR, [0,0,0]);
+  g.setLineDash([3*dpr, 5*dpr]); g.lineWidth = 1*dpr; g.strokeStyle = INK.axis;
+  for (const [e, name] of [[eR, 'radial (away from Sun)'], [eT, 'along-track']]) { g.beginPath(); g.moveTo(cx - e[0]*W, cy + e[1]*W); g.lineTo(cx + e[0]*W, cy - e[1]*W); g.stroke(); g.fillStyle = INK.muted; g.font = `${10*dpr}px system-ui, sans-serif`; g.fillText(name, cx + e[0]*Math.min(W,H)*0.42 + 4*dpr, cy - e[1]*Math.min(W,H)*0.42); }
+  g.setLineDash([]);
+  // history trails of displacement
+  const Hh = app.hist; const n = Hh.t.length; const n0 = Math.max(0, n - 600);
+  for (let j = 0; j < 8; j++) if (app.visible[j] && j !== 7 && n > 1) {
+    g.strokeStyle = RUN_COLORS[j]; g.globalAlpha = 0.5; g.beginPath();
+    for (let i = n0; i < n; i++) { const px = cx + Hh.runs[j].dx[i]*k, py = cy - Hh.runs[j].dy[i]*k; if (i === n0) g.moveTo(px, py); else g.lineTo(px, py); }
+    g.stroke(); g.globalAlpha = 1;
+  }
+  // markers
+  g.font = `${11*dpr}px system-ui, sans-serif`; g.textBaseline = 'middle';
+  const pts = []; for (let j = 0; j < 8; j++) if (app.visible[j]) pts.push({ j, px: cx + D[j][0]*k, py: cy - D[j][1]*k });
+  for (const p of pts) { g.fillStyle = RUN_COLORS[p.j]; g.beginPath(); g.arc(p.px, p.py, 4*dpr, 0, 6.283); g.fill(); g.strokeStyle = '#0a0d16'; g.lineWidth = 1.5*dpr; g.stroke(); }
+  const used = new Set(); // one label per cluster of coincident markers
+  for (const p of pts) { if (used.has(p.j)) continue; const cl = pts.filter(q => Math.hypot(q.px - p.px, q.py - p.py) < 8*dpr); cl.forEach(q => used.add(q.j));
+    g.fillStyle = INK.primary; g.fillText(cl.map(q => RUNS[q.j].label).join(' · ') + (cl.some(q => q.j === 7) ? ' (reference)' : ''), p.px + 7*dpr, p.py - 8*dpr); }
+  // scale bar
+  const target = W*0.25/k; const nice = niceStep(target*2, 2); const barPx = nice*k;
+  g.strokeStyle = INK.secondary; g.lineWidth = 1*dpr; g.beginPath(); g.moveTo(14*dpr, H - 20*dpr); g.lineTo(14*dpr + barPx, H - 20*dpr); g.stroke();
+  g.fillStyle = INK.secondary; g.textBaseline = 'bottom'; g.fillText(fmtSI(nice, 'm', 2) + ' true displacement', 14*dpr, H - 24*dpr);
+  g.fillStyle = '#ffd27a'; g.font = `bold ${13*dpr}px system-ui, sans-serif`; g.textBaseline = 'top'; g.fillText(`MAGNIFIED ×10^${app.magLog} relative to the main view`, 12*dpr, 8*dpr);
+  g.fillStyle = INK.muted; g.font = `${10*dpr}px system-ui, sans-serif`; g.fillText('x–y projection of (r_run − r_111); display magnification only — no forces are altered', 12*dpr, 26*dpr);
+}
+
+// ---------------------------------------------------------------- panels
+function updateStatic() {
+  const sim = app.sim, cfg = app.cfg, el = sim.elems0;
+  $('presetDesc').textContent = PRESETS[app.presetKey].description;
+  $('assumed').textContent = 'Assumed: ' + PRESETS[app.presetKey].assumed.join('; ') + '.';
+  const I = sim.I;
+  $('shapeInfo').innerHTML = `
+    <b>Mesh</b>: ${sim.nf} triangular facets, closed & convex (max excursion beyond any facet plane ${fmtExp(sim.mesh.maxNonConvex/sim.mesh.rmax,1)} r<sub>max</sub>); inscribed in the smooth synthetic shape.<br>
+    <b>Mass</b> ${fmtExp(sim.mass,4)} kg (ρ = ${cfg.density} kg/m³, V = ${fmtExp(sim.mesh.volume,4)} m³, area ${fmtExp(sim.mesh.area,3)} m²); r<sub>max</sub> = ${sim.mesh.rmax.toFixed(1)} m.<br>
+    <b>Principal inertia</b> I<sub>x</sub> ≤ I<sub>y</sub> ≤ I<sub>z</sub> = ${I.map(v=>fmtExp(v,3)).join(', ')} kg·m²; spin about +z (max inertia), P = ${cfg.spinPeriodH} h.<br>
+    <b>Initial heliocentric elements</b>: a = ${(el.a/CONST.AU).toFixed(4)} AU, e = ${el.e.toFixed(4)}, i = ${fmtDeg(el.i)}, Ω = ${fmtDeg(el.Om)}, ω = ${fmtDeg(el.w)}, M₀ = ${fmtDeg(el.M)}; period ${(el.period/CONST.DAY).toFixed(2)} d.<br>
+    <b>Warm-up</b>: facet temperatures seeded at spin-averaged radiative equilibrium, then the lumped ODE pre-integrated (RK4, ${sim.warm.substepsPerPeriod} substeps/period) for ${sim.warm.periods} rotations with the orbit frozen at t = 0; ending exactly at q₀. Range ${sim.warm.Tmin.toFixed(0)}–${sim.warm.Tmax.toFixed(0)} K; max |T(−P)−T(0)| = ${sim.warm.periodicityResidualK.toFixed(2)} K (permanently shadowed facets have no equilibrium in this model and keep cooling slowly).
+    ${sim.encounterInfo ? `<br><b>Synthetic encounter design</b>: miss ≈ ${sim.encounterInfo.designedMissAU} AU at day ≈ ${sim.encounterInfo.designedDays}, v<sub>rel</sub> ≈ ${sim.encounterInfo.designedVrel/1000} km/s (two-body design; actual approach emerges from the integration).` : ''}`;
+}
+function updatePanels(force) {
+  const sim = app.sim; if (!sim) return;
+  const el7 = sim.astElements(7);
+  $('timeHud').textContent = `t = ${fmtTime(sim.t)}`;
+  $('stepHud').textContent = `h = ${sim.integ.h.toFixed(0)} s · ${sim.integ.nAccept} steps (${sim.integ.nReject} rejected) · ${(sim.t/el7.period).toFixed(2)} orbits`;
+  const days = (s) => (s/CONST.DAY).toFixed(1);
+  $('speedLabel').textContent = `target ${days(app.speedTarget)} d/s (≈ ${(el7.period/app.speedTarget).toFixed(0)} s per orbit)`;
+  $('achievedLabel').textContent = app.playing ? `achieved ${days(app.achieved)} d/s${app.limited ? ' — limited by accuracy/hardware (speed reduced, tolerances kept)' : ''}` : 'paused';
+  $('achievedLabel').className = app.limited && app.playing ? 'warn' : '';
+  // diagnostics
+  const inv = sim.systemInvariants(); const i0 = sim.inv0;
+  const dE = (inv.E - i0.E)/Math.abs(i0.E), dL = norm(sub(inv.L, i0.L))/norm(i0.L), dP = norm(sub(inv.P, i0.P))/(BODY_DEFS[IDX.EARTH].mass*3e4);
+  const e111 = sim.astElements(7), e000 = sim.astElements(0); const E0 = sim.elems0.energy;
+  const nf7 = noiseFloor(7);
+  $('diag').innerHTML = `
+    <div class="kv"><span>Massive-body total energy (conserved quantity)</span><span>ΔE/|E₀| = ${fmtExp(dE)}</span></div>
+    <div class="kv"><span>Massive-body angular momentum</span><span>|ΔL|/|L₀| = ${fmtExp(dL)}</span></div>
+    <div class="kv"><span>Massive-body linear momentum (barycentric)</span><span>|ΔP| / (M<sub>⊕</sub>·30 km/s) = ${fmtExp(dP)}</span></div>
+    <div class="kv"><span>Run 111 heliocentric orbital energy change since t₀</span><span>${fmtExp((e111.energy - E0)/Math.abs(E0))} (physical: planetary forcing + radiation, not drift)</span></div>
+    <div class="kv"><span>Run 000 heliocentric orbital energy change since t₀</span><span>${fmtExp((e000.energy - E0)/Math.abs(E0))} (physical: planetary forcing without Earth/Moon)</span></div>
+    <div class="kv"><span>Run 111 a, e, i now</span><span>${(e111.a/CONST.AU).toFixed(6)} AU, ${e111.e.toFixed(6)}, ${fmtDeg(e111.i, 4)}</span></div>
+    <div class="kv"><span>Quaternion norm max deviation before projection (numerical diagnostic)</span><span>${fmtExp(sim.maxQnormDev)}</span></div>
+    <div class="kv"><span>Accumulated local-error estimate, run 111 (position / attitude)</span><span>${fmtSI(sim.errAccum[7].pos, 'm')} / ${fmtSI(sim.errAccum[7].q, 'rad')}</span></div>
+    <div class="kv"><span>Estimated numerical noise floor for run differences (position / spin)</span><span>${fmtSI(nf7.pos, 'm')} / ${fmtSI(nf7.spin, 'rad/s')}</span></div>
+    <div class="kv"><span>Closest Earth approach so far (run 111)</span><span>${isFinite(app.encounterMin.d) ? (app.encounterMin.d/CONST.AU).toFixed(5) + ' AU (' + fmtSI(app.encounterMin.d, 'm') + ') at t = ' + fmtTime(app.encounterMin.t) : '—'}</span></div>
+    <div class="kv"><span>Integrator</span><span>Dormand–Prince 5(4), adaptive, max-norm error control; tolerances: pos ${fmtExp(app.cfg.tol.rtolPos,0)} rel + ${app.cfg.tol.atolPos} m, vel ${fmtExp(app.cfg.tol.rtolVel,0)} rel, quaternion ${fmtExp(app.cfg.tol.atolQ,0)} abs, ω ${fmtExp(app.cfg.tol.rtolW,0)} rel, T ${app.cfg.tol.atolT} K abs</span></div>`;
+  updateTable(); updateInteractions();
+  if (force || !app._plotTick || (performance.now() - app._plotTick) > 500) { app._plotTick = performance.now(); renderPlot(); }
+}
+function updateTable() {
+  const sim = app.sim; const tb = $('cmpBody'); const rows = [];
+  for (let j = 0; j < 8; j++) {
+    const c = compareRuns(sim, j, 7); const nf = noiseFloor(j); const run = RUNS[j];
+    const mark = (b) => b ? '<span class="on">on</span>' : '<span class="off">off</span>';
+    const res = j === 7 ? 'reference' : (c.dr < 3*nf.pos ? '<span class="unres">position unresolved</span>' : (c.dr < 30*nf.pos ? '<span class="marg">marginal</span>' : 'resolved')) + (j !== 7 && Math.abs(c.dspin) > 0 && Math.abs(c.dspin) < 3*nf.spin ? '; <span class="unres">spin unresolved</span>' : '');
+    rows.push(`<tr style="${app.visible[j] ? '' : 'opacity:.45'}"><td><span class="sw" style="background:${RUN_COLORS[j]}"></span>${run.label}</td><td>${mark(run.P)}</td><td>${mark(run.S)}</td><td>${mark(run.T)}</td><td>${fmtTime(sim.t)}</td>
+      <td>${fmtSI(c.dr, 'm')}</td><td>${fmtSI(c.dv, 'm/s')}</td><td>${fmtSI(c.da, 'm')}</td><td>${fmtSI(c.plane, 'rad')}</td><td>${fmtSI(c.dspin, 'rad/s')}</td><td>${fmtSI(c.attitude, 'rad')}</td><td>${res}</td></tr>`);
+  }
+  tb.innerHTML = rows.join('');
+}
+function updateInteractions() {
+  const sim = app.sim; const key = $('obsSel').value; const obs = OBSERVABLES.find(o => o.key === key);
+  const yv = []; for (let j = 0; j < 8; j++) yv.push(compareRuns(sim, j, 7)[key]);
+  const fx = factorialEffects(yv); const u = obs.unit; const nf = noiseFloor(7);
+  const floor = key === 'dspin' ? nf.spin : key === 'da' ? nf.a : key === 'denergy' ? nf.vel*3e4 : nf.pos;
+  const cell = (v) => `<td class="num${Math.abs(v) < 3*floor ? ' unres' : ''}">${fmtSI(v, u)}</td>`;
+  let html = `<table class="mini"><thead><tr><th>y = ${obs.label.toLowerCase()} relative to run 111 (${u})</th>${RUNS.map(r => `<th>${r.label}</th>`).join('')}</tr></thead><tbody><tr><td>y</td>${yv.map(v => cell(v)).join('')}</tr></tbody></table>`;
+  html += `<table class="mini"><thead><tr><th>Effect of toggling one factor, others held fixed</th><th>fixed</th><th>value</th><th>fixed</th><th>value</th><th>fixed</th><th>value</th><th>fixed</th><th>value</th></tr></thead><tbody>`;
+  for (const F of ['P', 'S', 'T']) html += `<tr><td>${F}: y(${F}=1) − y(${F}=0)</td>${fx.main[F].map(m => `<td class="fixed">${m.fixed}</td>${cell(m.value)}`).join('')}</tr>`;
+  html += `</tbody></table><table class="mini"><thead><tr><th>Two-factor interactions (I = y₁₁ − y₁₀ − y₀₁ + y₀₀)</th><th>fixed</th><th>value</th><th>fixed</th><th>value</th></tr></thead><tbody>`;
+  for (const [k, name] of [['ST', 'I_ST'], ['PS', 'I_PS'], ['PT', 'I_PT']]) html += `<tr><td>${name}</td>${fx.inter[k].map(m => `<td class="fixed">${m.fixed}</td>${cell(m.value)}`).join('')}</tr>`;
+  html += `<tr><td>I_PST (three-factor)</td><td class="fixed">—</td>${cell(fx.inter.PST)}<td></td><td></td></tr></tbody></table>`;
+  $('interactions').innerHTML = html;
+  $('interNote').textContent = `Dimmed values are within 3× the estimated numerical noise floor (${fmtSI(floor, u)}) and are numerically unresolved. A nonzero interaction means the combined response differs from the sum of the separate responses (e.g. attitude changed by torques alters later illumination and forces). These are differences for this asteroid, this interval (t = ${fmtTime(sim.t)}), this observable and these parameter assumptions only; they are not universal importance percentages.`;
+}
+
+// ---------------------------------------------------------------- plots
+const PLOT_SERIES = { dr: ['|Δr| vs run 111', 'm'], along: ['along-track displacement vs 111', 'm'], radial: ['radial displacement vs 111', 'm'], normal: ['out-of-plane displacement vs 111', 'm'], da: ['Δa vs 111', 'm'], dspin: ['Δ spin rate vs 111', 'rad/s'], att: ['relative attitude angle vs 111', 'rad'], denergy: ['Δ specific orbital energy vs 111', 'J/kg'] };
+let plotHover = null;
+function renderPlot() {
+  fitCanvas(plotC); const W = plotC.width, H = plotC.height; const g = plotC.getContext('2d'); const dpr = window.devicePixelRatio || 1;
+  g.fillStyle = '#0a0d16'; g.fillRect(0, 0, W, H);
+  const Hh = app.hist; const key = app.plotObs; const n = Hh.t.length; const [title, unit] = PLOT_SERIES[key];
+  const ml = 78*dpr, mr = 16*dpr, mt = 28*dpr, mb = 34*dpr; const pw = W - ml - mr, ph = H - mt - mb;
+  const runsShown = []; for (let j = 0; j < 8; j++) if (app.visible[j] && j !== 7) runsShown.push(j);
+  const tDays = Hh.t.map(t => t/CONST.DAY);
+  let ymin = Infinity, ymax = -Infinity; for (const j of runsShown) for (const v of Hh.runs[j][key]) { if (v < ymin) ymin = v; if (v > ymax) ymax = v; }
+  if (!isFinite(ymin) || n < 2) { g.fillStyle = INK.secondary; g.font = `${12*dpr}px system-ui, sans-serif`; g.fillText('Collecting samples…', ml, H/2); return; }
+  if (ymax - ymin < 1e-300) { ymax += 1e-12; ymin -= 1e-12; }
+  const pad = (ymax - ymin)*0.08; ymin -= pad; ymax += pad; const tmin = tDays[0], tmax = Math.max(tDays[n-1], tmin + 1e-6);
+  const X = (t) => ml + (t - tmin)/(tmax - tmin)*pw, Y = (v) => mt + (ymax - v)/(ymax - ymin)*ph;
+  // grid
+  g.strokeStyle = INK.grid; g.lineWidth = 1*dpr; g.font = `${10*dpr}px system-ui, sans-serif`; g.fillStyle = INK.muted; g.textAlign = 'right'; g.textBaseline = 'middle';
+  const ys = niceStep(ymax - ymin, 5); for (let v = Math.ceil(ymin/ys)*ys; v <= ymax; v += ys) { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(W - mr, Y(v)); g.stroke(); g.fillText(fmtSI(v, '', 2), ml - 6*dpr, Y(v)); }
+  const xs = niceStep(tmax - tmin, 6); g.textAlign = 'center'; g.textBaseline = 'top'; for (let t = Math.ceil(tmin/xs)*xs; t <= tmax; t += xs) { g.beginPath(); g.moveTo(X(t), mt); g.lineTo(X(t), mt + ph); g.stroke(); g.fillText(t.toFixed(xs < 1 ? 1 : 0), X(t), mt + ph + 6*dpr); }
+  g.strokeStyle = INK.axis; g.beginPath(); g.moveTo(ml, mt); g.lineTo(ml, mt + ph); g.lineTo(W - mr, mt + ph); g.stroke();
+  g.fillStyle = INK.secondary; g.textAlign = 'left'; g.textBaseline = 'top'; g.font = `${11*dpr}px system-ui, sans-serif`; g.fillText(`${title} (${unit}) — solid: simulated; dashed: ${app.plotFit === 2 ? 'quadratic' : app.plotFit === 1 ? 'linear' : 'no'} least-squares trend`, ml, 6*dpr);
+  g.fillStyle = INK.muted; g.textAlign = 'center'; g.fillText('simulated time (days)', ml + pw/2, H - 14*dpr);
+  // series
+  const legend = [];
+  for (const j of runsShown) {
+    const ys_ = Hh.runs[j][key]; g.strokeStyle = RUN_COLORS[j]; g.lineWidth = 1.6*dpr; g.beginPath();
+    for (let i = 0; i < n; i++) { const px = X(tDays[i]), py = Y(ys_[i]); if (i === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+    g.stroke();
+    let fitTxt = '';
+    if (app.plotFit > 0 && n > 3) {
+      const fit = polyFit(Hh.t, ys_, app.plotFit);
+      if (fit) { g.setLineDash([5*dpr, 4*dpr]); g.lineWidth = 1.2*dpr; g.beginPath(); for (let i = 0; i < n; i++) { const px = X(tDays[i]), py = Y(fit.evalAt(Hh.t[i])); if (i === 0) g.moveTo(px, py); else g.lineTo(px, py); } g.stroke(); g.setLineDash([]);
+        fitTxt = ` · trend ${fmtSI(fit.slope*CONST.YEAR, unit + '/yr', 2)}${app.plotFit === 2 ? ' (at start)' : ''}, periodic residual RMS ${fmtSI(fit.rms, unit, 2)}`; }
+    }
+    legend.push([j, RUNS[j].label + fitTxt]);
+  }
+  // legend
+  g.textAlign = 'left'; g.textBaseline = 'middle'; g.font = `${10.5*dpr}px system-ui, sans-serif`; let lx = ml + 8*dpr, ly = mt + 10*dpr;
+  for (const [j, txt] of legend) { g.fillStyle = RUN_COLORS[j]; g.fillRect(lx, ly - 1.5*dpr, 14*dpr, 3*dpr); g.fillStyle = INK.secondary; g.fillText(txt, lx + 18*dpr, ly); ly += 14*dpr; }
+  // hover crosshair
+  if (plotHover) {
+    const mx = plotHover[0]*dpr; if (mx >= ml && mx <= ml + pw) {
+      const tq = tmin + (mx - ml)/pw*(tmax - tmin); let lo = 0, hi = n - 1; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tDays[mid] < tq) lo = mid; else hi = mid; } const i = (tq - tDays[lo] < tDays[hi] - tq) ? lo : hi;
+      g.strokeStyle = INK.secondary; g.setLineDash([2*dpr, 3*dpr]); g.beginPath(); g.moveTo(X(tDays[i]), mt); g.lineTo(X(tDays[i]), mt + ph); g.stroke(); g.setLineDash([]);
+      const lines = [`t = ${tDays[i].toFixed(2)} d`]; for (const j of runsShown) { lines.push(`${RUNS[j].label}: ${fmtSI(Hh.runs[j][key][i], unit)}`); g.fillStyle = RUN_COLORS[j]; g.beginPath(); g.arc(X(tDays[i]), Y(Hh.runs[j][key][i]), 4*dpr, 0, 6.283); g.fill(); }
+      const bw = 170*dpr, bh = (lines.length*13 + 8)*dpr; let bx = X(tDays[i]) + 10*dpr; if (bx + bw > W) bx = X(tDays[i]) - bw - 10*dpr; const by = mt + 6*dpr;
+      g.fillStyle = 'rgba(14,18,30,0.92)'; g.fillRect(bx, by, bw, bh); g.strokeStyle = INK.axis; g.strokeRect(bx, by, bw, bh);
+      g.fillStyle = INK.primary; g.textBaseline = 'top'; lines.forEach((s, k) => g.fillText(s, bx + 6*dpr, by + (4 + 13*k)*dpr));
+    }
+  }
+}
+plotC.addEventListener('mousemove', (e) => { const r = plotC.getBoundingClientRect(); plotHover = [e.clientX - r.left, e.clientY - r.top]; renderPlot(); });
+plotC.addEventListener('mouseleave', () => { plotHover = null; renderPlot(); });
+
+// ---------------------------------------------------------------- verification UI
+function runVerificationUI() {
+  if (app.verifying) return; app.verifying = true; const wasPlaying = app.playing; app.playing = false;
+  const btn = $('verifyBtn'); btn.disabled = true; const out = $('verifyOut'); out.innerHTML = '<p class="muted">Running checks… (the simulation is paused while the checks execute)</p>';
+  const tests = [testKeplerOrbit, testReflectingPlate, testTorque, testRigidBody, () => testRefinement(app.cfg), () => testMeshRefinement(app.cfg)];
+  const results = []; let k = 0;
+  const badge = (v) => `<span class="badge ${v}">${v === 'pass' ? '✓ pass' : v === 'fail' ? '✗ fail' : '? unresolved'}</span>`;
+  const render = () => {
+    let html = '';
+    for (const r of results) {
+      html += `<div class="vgroup"><h4>${r.name}</h4><p class="muted small">${r.info}</p><table class="mini"><thead><tr><th>quantity</th><th>measured error</th><th>threshold</th><th>verdict</th></tr></thead><tbody>`;
+      for (const row of r.rows) html += `<tr><td>${row.quantity}</td><td class="num">${fmtExp(row.error, 3)}</td><td class="num">${fmtExp(row.threshold, 1)}</td><td>${badge(row.verdict)}</td></tr>`;
+      html += '</tbody></table></div>';
+    }
+    const all = results.flatMap(r => r.rows); const np = all.filter(r => r.verdict === 'pass').length, nfail = all.filter(r => r.verdict === 'fail').length, nu = all.filter(r => r.verdict === 'unresolved').length;
+    html = `<p><b>${results.length}/${tests.length} groups executed</b> · ${np} pass · ${nfail} fail · ${nu} unresolved (${new Date().toISOString()})</p>` + html;
+    out.innerHTML = html;
+  };
+  const next = () => {
+    if (k >= tests.length) { app.verifying = false; btn.disabled = false; app.playing = wasPlaying; app.lastFrame = 0; app.verifyResults = results; render(); return; }
+    try { results.push(tests[k]()); } catch (err) { results.push({ name: 'test threw an exception', rows: [{ quantity: String(err), error: NaN, threshold: 0, verdict: 'fail' }], info: '' }); }
+    k++; render(); setTimeout(next, 30);
+  };
+  setTimeout(next, 30);
+}
+
+// ---------------------------------------------------------------- exports
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function exportCSV() {
+  const sim = app.sim; const lines = ['# NEA Dynamics Lab — comparison table (synthetic demonstration; differences relative to run 111). SI units.', `# preset=${app.presetKey} t_s=${sim.t}`,
+    'run,P,S,T,t_s,dr_m,dv_mps,along_m,radial_m,normal_m,da_m,de,plane_rad,dspin_radps,attitude_rad,denergy_Jpkg,noise_floor_pos_m,noise_floor_spin_radps'];
+  for (let j = 0; j < 8; j++) { const c = compareRuns(sim, j, 7), nf = noiseFloor(j), r = RUNS[j]; lines.push([r.label, +r.P, +r.S, +r.T, sim.t, c.dr, c.dv, c.along, c.radial, c.normal, c.da, c.de, c.plane, c.dspin, c.attitude, c.denergy, nf.pos, nf.spin].join(',')); }
+  lines.push('', '# time series (sampled every ' + app.hist.dt + ' s)', 'run,t_s,dr_m,along_m,radial_m,normal_m,da_m,dspin_radps,attitude_rad,denergy_Jpkg');
+  const H = app.hist; for (let j = 0; j < 8; j++) for (let i = 0; i < H.t.length; i++) { const r = H.runs[j]; lines.push([RUNS[j].label, H.t[i], r.dr[i], r.along[i], r.radial[i], r.normal[i], r.da[i], r.dspin[i], r.att[i], r.denergy[i]].join(',')); }
+  if (app.verifyResults) { lines.push('', '# verification results', 'group,quantity,error,threshold,verdict'); for (const g of app.verifyResults) for (const row of g.rows) lines.push([JSON.stringify(g.name), JSON.stringify(row.quantity), row.error, row.threshold, row.verdict].join(',')); }
+  download('nea-lab-results.csv', lines.join('\n'), 'text/csv');
+}
+function exportJSON() {
+  const sim = app.sim, cfg = app.cfg; const y0 = sim.y0;
+  const bodies = BODY_DEFS.map((b, i) => ({ name: b.name, mass_kg: b.mass, radius_m: b.radius, r0_m: sim.bodyPos(i, y0), v0_mps: sim.bodyVel(i, y0) }));
+  const out = {
+    tool: 'Near-Earth Asteroid Dynamics Lab', exported: new Date().toISOString(), status: 'synthetic demonstration — not an ephemeris; observational validation not performed',
+    constants: CONST, frame: 'Solar-System barycentric inertial frame with heliocentric ecliptic J2000 axes; asteroid orbital elements are heliocentric (relative to the moving Sun) with μ = G M_sun (test particle)',
+    preset: { key: app.presetKey, name: PRESETS[app.presetKey].name, description: PRESETS[app.presetKey].description, assumed: PRESETS[app.presetKey].assumed },
+    planet_elements_J2000_approx: PLANET_ELEMENTS, moon_elements: MOON_ELEMENTS, bodies,
+    asteroid: { longAxis_m: cfg.longAxis, axisRatios: cfg.axisRatios, bumpSeed: cfg.bumpSeed, bumpAmp: cfg.bumpAmp, bumps: sim.shape.bumps, meshLevel: cfg.meshLevel, nFaces: sim.nf, volume_m3: sim.mesh.volume, area_m2: sim.mesh.area, mass_kg: sim.mass, principalInertia_kgm2: sim.I, rmax_m: sim.mesh.rmax, maxNonConvexity_m: sim.mesh.maxNonConvex,
+      density_kgm3: cfg.density, spinPeriod_h: cfg.spinPeriodH, pole_ecliptic_deg: { lon: cfg.poleLon, lat: cfg.poleLat }, spinPhase_deg: cfg.spinPhase, alpha: cfg.alpha, rhoD: cfg.rhoD, rhoS: cfg.rhoS, eps: cfg.eps, C_A_Jm2K: cfg.C_A,
+      initial: { r0_m: sim.r0, v0_mps: sim.v0, heliocentric_elements: { a_AU: sim.elems0.a/CONST.AU, e: sim.elems0.e, i_deg: sim.elems0.i/DEG, Om_deg: sim.elems0.Om/DEG, w_deg: sim.elems0.w/DEG, M_deg: sim.elems0.M/DEG, period_d: sim.elems0.period/CONST.DAY }, q0_body_to_inertial_wxyz: sim.q0, omega0_body_radps: sim.wB0, T0_K: Array.from(sim.astT(7, y0)) },
+      warmup: sim.warm, encounterDesign: sim.encounterInfo },
+    runs: RUNS.map(r => ({ label: r.label, P_EarthMoonGravity: r.P, S_directRadiation: r.S, T_thermalRecoil: r.T })),
+    numerics: { integrator: 'Dormand–Prince 5(4), adaptive, FSAL, max-norm error control, quaternion projected to unit norm after each accepted step', tolerances: cfg.tol, accuracy: cfg.accuracyKey, state_dimension: sim.n, t_now_s: sim.t, steps: sim.integ.nAccept, rejected: sim.integ.nReject, h_now_s: sim.integ.h, errAccum: sim.errAccum, maxQnormDev: sim.maxQnormDev },
+    model: {
+      gravity: 'mutual Newtonian point-mass gravity among Sun, 8 planets and Moon; asteroid copies are test particles feeling all massive bodies (Earth+Moon only when P is on)',
+      direct_radiation: 'per illuminated facet: F = (I A cosθ / c)[−(α+ρd) s − (2ρs cosθ + 2ρd/3) n], α+ρd+ρs = 1; torque = Σ r_c × F about the centre of mass; I(r) = L_sun/(4π r²)',
+      thermal: 'lumped facet temperature C_A dT/dt = α I max(0,n·s) − εσT⁴ (finite-heat-capacity approximation; no conduction); Lambertian recoil F = −(2/3c) εσ A T⁴ n; heating active in all runs, recoil force/torque applied only when T is on',
+      rotation: 'quaternion kinematics + Euler equations with principal inertia from the uniform-density mesh; torques from facet sums only (no separate Yarkovsky/YORP terms)',
+      omitted: ['relativistic corrections', 'non-spherical planetary gravity', 'gravity-gradient torques', 'subsurface conduction / thermal inertia', 'surface self-heating and mutual shadowing (convex shape)', 'planetary shadowing (eclipses)', 'asteroid mass in planetary equations', 'massive asteroids', 'solar wind / Poynting–Robertson', 'reflected/thermal radiation from planets'],
+    },
+    validation: { observational: 'not performed (no independent reference dataset supplied)', verification_last_run: app.verifyResults || null },
+  };
+  download('nea-lab-config.json', JSON.stringify(out, null, 2), 'application/json');
+}
+
+// ---------------------------------------------------------------- wiring
+function wire() {
+  const presetSel = $('preset'); for (const p of Object.values(PRESETS)) { const o = document.createElement('option'); o.value = p.key; o.textContent = p.name; presetSel.appendChild(o); }
+  presetSel.value = app.presetKey; presetSel.addEventListener('change', () => { app.presetKey = presetSel.value; fillForm(PRESETS[app.presetKey]); restart(); });
+  const follow = $('follow'); follow.innerHTML = '<option value="none">free (drag to pan)</option>' + BODY_DEFS.map((b, i) => `<option value="${i}">${b.name}</option>`).join('') + '<option value="107">Asteroid (run 111)</option>';
+  follow.value = '107'; follow.addEventListener('change', () => { app.follow = follow.value === 'none' ? null : parseInt(follow.value); });
+  $('playBtn').addEventListener('click', () => { app.playing = !app.playing; $('playBtn').textContent = app.playing ? '❚❚ Pause' : '▶ Play'; app.lastFrame = 0; });
+  $('stepBtn').addEventListener('click', () => { app.playing = false; $('playBtn').textContent = '▶ Play'; const h = app.sim.step(); updatePanels(true); $('stepHud').textContent += ` · stepped ${h.toFixed(1)} s`; });
+  $('resetBtn').addEventListener('click', () => restart());
+  $('applyBtn').addEventListener('click', () => restart());
+  $('speed').addEventListener('input', () => { app.speedTarget = Math.pow(10, parseFloat($('speed').value)); });
+  $('resetViewBtn').addEventListener('click', () => { initView(); app.follow = null; $('follow').value = 'none'; });
+  for (const id of ['p_alpha', 'p_rhoD']) $(id).addEventListener('input', updateRhoS);
+  const chips = $('runChips'); chips.innerHTML = RUNS.map((r, j) => `<label class="chip" style="--c:${RUN_COLORS[j]}"><input type="checkbox" data-run="${j}" checked> ${r.label}</label>`).join('');
+  chips.querySelectorAll('input').forEach(cb => cb.addEventListener('change', () => { app.visible[parseInt(cb.dataset.run)] = cb.checked; }));
+  $('mag').addEventListener('input', () => { app.magLog = parseInt($('mag').value); app.magAuto = false; $('magAuto').checked = false; });
+  $('magAuto').addEventListener('change', () => { app.magAuto = $('magAuto').checked; });
+  $('closeView').addEventListener('change', () => { app.closeView = $('closeView').value; });
+  const cr = $('closeRun'); cr.innerHTML = RUNS.map((r, j) => `<option value="${j}">${r.label}</option>`).join(''); cr.value = '7'; cr.addEventListener('change', () => { app.closeRun = parseInt(cr.value); });
+  const obs = $('obsSel'); obs.innerHTML = OBSERVABLES.map(o => `<option value="${o.key}">${o.label} (${o.unit})</option>`).join(''); obs.addEventListener('change', updateInteractions);
+  const ps = $('plotObs'); ps.innerHTML = Object.entries(PLOT_SERIES).map(([k, [name, unit]]) => `<option value="${k}">${name} (${unit})</option>`).join(''); ps.value = app.plotObs; ps.addEventListener('change', () => { app.plotObs = ps.value; renderPlot(); });
+  $('plotFit').addEventListener('change', () => { app.plotFit = parseInt($('plotFit').value); renderPlot(); });
+  $('verifyBtn').addEventListener('click', runVerificationUI);
+  $('csvBtn').addEventListener('click', exportCSV); $('jsonBtn').addEventListener('click', exportJSON);
+  window.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return; if (e.code === 'Space') { e.preventDefault(); $('playBtn').click(); } if (e.key === '.') $('stepBtn').click(); });
+}
+window.addEventListener('error', (e) => { const b = $('errBanner'); b.style.display = 'block'; b.textContent = 'Script error: ' + e.message + ' (' + (e.filename || '') + ':' + e.lineno + ')'; });
+fillForm(PRESETS.geographos); wire(); fitCanvas(mainC); initView(); restart(); requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>
