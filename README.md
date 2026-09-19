@@ -126,3 +126,80 @@ Include a compact methods panel describing the implemented equations and approxi
 Do not claim to reproduce Geographos observations, JPL Horizons, impact probabilities, or a universally dominant perturbation hierarchy. Display observational validation as “not performed” unless an independent reference dataset has actually been supplied and compared.
 
 Deliver the complete working HTML, with understandable code and no placeholder charts, fabricated measurements, or simulated verification results.
+
+# Context
+**Yes—controlled perturbation comparisons are appropriate, but I would refine the design and substantially qualify my earlier assessment.** A factorial experiment can reveal how model components affect predictions. It cannot, by itself, establish that those predictions are physically accurate.
+
+My recommendation is to combine **numerical verification, targeted perturbation comparisons, and independent validation**.
+
+First, the terminology needs correcting. A full factorial design evaluates every combination of the selected factors. Three binary switches require \(2^3=8\) runs. In my original table, **A, B, C and E already form a two-factor factorial experiment**, provided E uses the same Earth/Moon gravity model as C. D introduces a gravity-model refinement, while F adds several effects together. The complete six-case list is therefore a mixed comparison design, rather than a full factorial design. [NIST’s definition](https://www.itl.nist.gov/div898/handbook/pri/section3/pri333.htm)
+
+More consequentially, rereading the thesis exposed issues that should be resolved **before interpreting differences between perturbation models**.
+
+* **The Sun-only baseline needs verification.** Figure 6.6(a), printed page 50, shows its semi-major axis varying approximately from 1.2455 to 1.2462 AU—an excursion of roughly 100,000 km. Under the stated two-body equations, that quantity should remain constant apart from numerical error. This calls for checking the integration and the calculation of orbital elements. 
+* **The reported force and orbital changes appear inconsistent.** Table 6.4 gives a mass of \(6.2081\times10^{12}\) kg, while Figure 6.9 shows SRP forces of order tens of newtons. My angular-momentum scaling check gives an orbital-plane change of order \(10^{-8}\) radians over the plotted 1.6 years, whereas Figure 6.6(c) shows changes of order \(10^{-1}\) radians. If that graph represents conventional inertial orbital inclination, these results need reconciliation. A reference-frame, unit, integration, or plotting issue could explain the discrepancy; the PDF alone cannot identify its cause. 
+* **The rotation experiment starts from rest.** Table 6.3 sets angular velocity to zero. That is useful for demonstrating that a torque generates rotation, but actual Geographos rotates approximately every **5.22 hours**. Its existing spin substantially changes the illumination history and averaging of torques. [Geographos physical-characterisation study](https://arxiv.org/html/1407.2127v1)
+
+Consequently, I would replace “the SRP side was reasonably well validated” with: **the thesis demonstrated an implementation and provided a limited force benchmark, but the accuracy of the coupled orbital and rotational predictions remains insufficiently established.** The broad predominance hypothesis was not demonstrated.
+
+The comparison programme I would recommend is the following.
+
+**Start by establishing a trustworthy numerical baseline.** Recover the analytical Kepler orbit and check conservation of energy and angular momentum. Verify simple radiation-force and torque cases independently. Then tighten integration tolerances and refine the surface discretisation until the resulting changes are comfortably smaller than the perturbations being measured. Otherwise, adding more physics can obscure existing errors.
+
+**Use a realistic gravitational reference for scientific comparisons.** Let \(G\) include the Sun, planets and Moon, with additional corrections selected according to the required accuracy. Earth and Moon should not be assumed to be the leading gravitational perturbers simply because those are the bodies included in the experiment. High-precision asteroid studies include the other planets, and sometimes massive asteroids and relativistic corrections. [Del Vigna et al., force model](https://arxiv.org/pdf/1805.05947)
+
+Then define radiation components explicitly:
+
+* \(S\): momentum transfer from incident and reflected sunlight, including force and torque.
+* \(T\): recoil from thermal emission, including force and torque.
+
+A useful initial factorial experiment is:
+
+| Run | Gravitational reference \(G\) | Direct radiation \(S\) | Thermal recoil \(T\) |
+| --- | ----------------------------: | ---------------------: | -------------------: |
+| 00  |                      Included |                    Off |                  Off |
+| 10  |                      Included |                     On |                  Off |
+| 01  |                      Included |                    Off |                   On |
+| 11  |                      Included |                     On |                   On |
+
+The thermal-only run is a **computational diagnostic**: sunlight still heats the asteroid, while the direct momentum-transfer term is disabled. It is not a physically realisable asteroid.
+
+For a signed observable \(y\), such as displacement along a common reference orbit at a specified time, calculate:
+
+$$
+I_{ST}=y_{11}-y_{10}-y_{01}+y_{00}.
+$$
+
+This measures whether the combined response differs from the sum of the separate responses. Such interactions can arise because changing attitude changes illumination, which changes subsequent forces and torques. Using signed components helps avoid apparent interactions introduced merely by taking a vector norm.
+
+There is also a correction to my original “add Yarkovsky/YORP” recommendation: **YORP includes reflected-light torque as well as thermal-emission torque.** Adding a complete YORP prescription on top of an SRP torque model could count part of the same physics twice. The implementation should account for each momentum-transfer contribution once. [Yarkovsky and YORP review](https://arxiv.org/abs/1502.01249)
+
+**Test Earth/Moon importance and gravity refinements separately.** Starting from the verified reference model, remove Earth’s contribution, Moon’s contribution, and other relevant planetary contributions in controlled runs. These comparisons measure the consequences of omitting each contribution for the selected asteroid and interval.
+
+Compare point-mass gravity against point-mass gravity **plus non-spherical corrections** in an additional, nested experiment. Spherical harmonics are a refinement of a body’s gravity field; their importance must be assessed against encounter geometry and the error budget. They should not automatically receive priority over other omitted physics. The 2014 Bennu analysis provides a useful example of explicitly testing model refinements and omissions. [Chesley et al.](https://arxiv.org/pdf/1402.5573)
+
+If interactions between Earth/Moon gravity, direct radiation and thermal recoil are themselves the research question, then use **all eight combinations of those three switches**, holding the remaining background model fixed. Grouping Earth and Moon together would still prevent conclusions about their individual importance.
+
+**Choose the outputs before ranking the perturbations.** Different outputs can produce different rankings.
+
+| Research question           | Appropriate outputs                                                               |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| Orbital prediction          | Position and velocity residuals; radial, along-track and cross-track displacement |
+| Long-term orbital evolution | Orbit-averaged semi-major-axis drift, separated from periodic variations          |
+| Rotational evolution        | Spin-rate change, pole direction and relative attitude angle                      |
+| Close encounter prediction  | Encounter timing, closest-approach distance and encounter-plane displacement      |
+
+My earlier suggestion of “attitude change in quaternion norm” was incorrect. **Unit quaternions should retain unit norm regardless of orientation.** Their norm is a numerical consistency check; relative rotation angle measures attitude change.
+
+A nonzero perturbation also does not automatically imply sustained secular drift. Periodic changes need to be distinguished from changes that accumulate across successive orbits.
+
+Finally, **simulation comparison and observational validation require different procedures**:
+
+* For perturbation attribution, hold initial conditions and physical parameters fixed.
+* For observational validation, fit each candidate model fairly to the observations, account for parameter uncertainty, and preferably assess predictions against observations withheld from fitting.
+
+Horizons is valuable for an independent propagation benchmark, provided epochs, reference frames, time scales, units and model assumptions match. Its ephemerides are fitted model predictions with uncertainties, however, rather than direct observations. An orbital match also does not validate an attitude model; that requires rotational observations such as light curves. [JPL Horizons documentation](https://ssd.jpl.nasa.gov/horizons/manual.html)
+
+One historical correction matters: thermal effects were relevant **already in 2014**. YORP had been detected on Geographos in 2008. A complete thermophysical solver need not have been mandatory for your MSc scope, but excluding those effects required limiting the hypothesis accordingly. [Ďurech et al., 2008](https://astro.troja.mff.cuni.cz/davok/papers/geographos_yorp_08.pdf)
+
+I would therefore reformulate the investigation around **whether a specified set of perturbations meets stated orbit and attitude accuracy requirements for defined asteroids and time intervals**. Repeat the comparisons across plausible shape, spin, density and thermal-property uncertainties. That produces a defensible result about when each model component is necessary—and gives the factorial experiment a clear role within the validation process.
