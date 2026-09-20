@@ -38,7 +38,6 @@ Things to know
 - Preset properties that are assumed rather than documented are listed on screen and in the JSON export. The synthetic encounter reaches about 0.02 AU from Earth near day 149, and the on-screen note
   says the geometry was designed.
 - Permanently shadowed facets have no equilibrium in a conduction-free model and cool slowly; the warm-up panel says so.
-- I did not commit. The README still holds the original brief; I left it untouched since it.
 
 # Prompt
 Build an interactive **Near-Earth Asteroid Dynamics Lab** as one self-contained HTML file, with embedded CSS and JavaScript, no external libraries, assets, or network requests. Make it look like an elegant museum exhibit: a dark starfield, restrained colours, readable typography, thin fading trails, and a softly glowing Sun. Start running immediately.
